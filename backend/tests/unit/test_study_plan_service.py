@@ -1,7 +1,8 @@
 import pytest
+from botocore.exceptions import ConnectTimeoutError, ReadTimeoutError
 
-from src.repositories.study_plans_repository import PlanLockLostError
-from src.services import study_plan_service
+from src.repositories.study_plans_repository import PlanLockLostError, PlanPersistenceError
+from src.services import bedrock_service, study_plan_service
 from src.services.bedrock_service import BedrockGenerationError
 from src.utils.errors import ConflictError, ValidationError
 
@@ -38,6 +39,33 @@ def test_falls_back_to_rule_based_on_bedrock_error(monkeypatch):
     plan = study_plan_service.generate_plan(BASE_PARAMS, request_id="test-2")
     assert plan["generator"] == "RULE"
     assert plan["total_minutes"] <= BASE_PARAMS["available_minutes"]
+
+
+@pytest.mark.parametrize("timeout_type", [ConnectTimeoutError, ReadTimeoutError])
+def test_sdk_timeout_falls_back_to_rule_based_and_logs_failure(monkeypatch, timeout_type):
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "test-model")
+
+    class _TimeoutClient:
+        def converse(self, **kwargs):
+            raise timeout_type(endpoint_url="https://bedrock.invalid")
+
+    monkeypatch.setattr(bedrock_service, "_client", lambda: _TimeoutClient())
+    logged = []
+    monkeypatch.setattr(study_plan_service, "log_event", lambda *args: logged.append(args))
+
+    plan = study_plan_service.generate_plan(BASE_PARAMS, request_id="timeout-request")
+
+    assert plan == {
+        **study_plan_service.generate_rule_based_plan(BASE_PARAMS),
+        "generator": "RULE",
+        "model_id": "rule-based-v1",
+        "prompt_version": bedrock_service.PROMPT_VERSION,
+    }
+    assert len(logged) == 1
+    assert logged[0][:3] == (
+        "timeout-request", "study_plan_service.generate_plan.bedrock_fallback", "FAILURE"
+    )
+    assert "Bedrock呼び出しに失敗しました" in logged[0][4]["error"]
 
 
 def _wire_full_generation_chain(monkeypatch, *, complete_plan_with_tasks=None):
@@ -246,3 +274,52 @@ def test_successful_generation_persists_plan_and_tasks_via_single_transaction(mo
     assert captured["owner_id"] == "req-1"
     assert captured["plan_id"] == "plan-1"
     assert len(captured["tasks"]) == 1
+
+
+@pytest.mark.parametrize("save_fails", [False, True])
+def test_timeout_fallback_reaches_save_and_cleans_up_on_save_failure(monkeypatch, save_fails):
+    plan_date = "2026-01-01"
+    monkeypatch.setattr(study_plan_service, "today_jst", lambda: plan_date)
+    real_generate_plan = study_plan_service.generate_plan
+    real_build_task_item = study_plan_service.build_task_item
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "test-model")
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    captured = {}
+    persistence_error = PlanPersistenceError("save failed")
+
+    def _complete_plan_with_tasks(**kwargs):
+        captured.update(kwargs)
+        if save_fails:
+            raise persistence_error
+        return {"plan_id": "plan-1", "status": "COMPLETED", "generator": kwargs["generator"]}
+
+    _wire_full_generation_chain(monkeypatch, complete_plan_with_tasks=_complete_plan_with_tasks)
+    monkeypatch.setattr(study_plan_service, "generate_plan", real_generate_plan)
+    monkeypatch.setattr(study_plan_service, "build_task_item", real_build_task_item)
+
+    class _TimeoutClient:
+        def converse(self, **kwargs):
+            raise ReadTimeoutError(endpoint_url="https://bedrock.invalid")
+
+    monkeypatch.setattr(bedrock_service, "_client", lambda: _TimeoutClient())
+    fail_calls = []
+    monkeypatch.setattr(study_plan_service, "fail_plan", lambda *a, **k: fail_calls.append((a, k)))
+
+    if save_fails:
+        with pytest.raises(PlanPersistenceError) as exc_info:
+            study_plan_service.generate_plan_for_student("student-1", 15, "timeout-request")
+        assert exc_info.value is persistence_error
+        assert fail_calls == [(("student-1", plan_date), {"owner_id": "timeout-request"})]
+    else:
+        result = study_plan_service.generate_plan_for_student("student-1", 15, "timeout-request")
+        assert result["status"] == "COMPLETED"
+        assert result["generator"] == "RULE"
+        assert result["tasks"] == captured["tasks"]
+        assert fail_calls == []
+
+    assert captured["generator"] == "RULE"
+    assert captured["model_id"] == "rule-based-v1"
+    assert captured["owner_id"] == "timeout-request"
+    assert captured["tasks"]
+    assert sum(task["planned_minutes"] for task in captured["tasks"]) <= 15
