@@ -1,7 +1,9 @@
 import pytest
 
+from src.repositories.study_plans_repository import PlanLockLostError
 from src.services import study_plan_service
 from src.services.bedrock_service import BedrockGenerationError
+from src.utils.errors import ConflictError, ValidationError
 
 BASE_PARAMS = {
     "grade": "中学2年",
@@ -36,3 +38,211 @@ def test_falls_back_to_rule_based_on_bedrock_error(monkeypatch):
     plan = study_plan_service.generate_plan(BASE_PARAMS, request_id="test-2")
     assert plan["generator"] == "RULE"
     assert plan["total_minutes"] <= BASE_PARAMS["available_minutes"]
+
+
+def _wire_full_generation_chain(monkeypatch, *, complete_plan_with_tasks=None):
+    """Wires every dependency generate_plan_for_student needs to reach
+    complete_plan_with_tasks successfully, so tests only need to override the
+    lock/completion-related pieces they care about.
+    """
+    monkeypatch.setattr(
+        study_plan_service,
+        "list_progresses_by_student",
+        lambda student_id: [{"subject_id": "math", "unit_name": "unit", "understanding": 3}],
+    )
+    monkeypatch.setattr(study_plan_service, "get_user_by_id", lambda student_id: {"class_id": "class-1"})
+    monkeypatch.setattr(
+        study_plan_service, "get_curriculum", lambda class_id, subject_id: {"unit_name": "school-unit"}
+    )
+    monkeypatch.setattr(study_plan_service, "get_class_by_id", lambda class_id: {"grade": "grade-1"})
+    monkeypatch.setattr(study_plan_service, "get_subject_by_id", lambda subject_id: {"name": "math"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "generate_plan",
+        lambda params, request_id: {
+            "title": "title",
+            "reason": "reason",
+            "tasks": [{"order": 1, "title": "t", "description": "d", "minutes": 10}],
+            "generator": "RULE",
+            "model_id": "rule-based-v1",
+            "prompt_version": "v1",
+        },
+    )
+    monkeypatch.setattr(study_plan_service, "build_task_item", lambda **kwargs: {"task_id": "task-1"})
+    if complete_plan_with_tasks is not None:
+        monkeypatch.setattr(study_plan_service, "complete_plan_with_tasks", complete_plan_with_tasks)
+
+
+def test_reuses_existing_completed_plan_without_generating(monkeypatch):
+    existing_plan = {"plan_id": "plan-1", "status": "COMPLETED"}
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: existing_plan)
+    monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [{"task_id": "task-1"}])
+
+    def _fail_if_called(*a, **k):
+        raise AssertionError("must not try to acquire a lock when a completed plan already exists")
+
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", _fail_if_called)
+
+    result = study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert result["plan_id"] == "plan-1"
+    assert result["tasks"] == [{"task_id": "task-1"}]
+
+
+def test_raises_conflict_when_lock_busy_and_no_completed_plan(monkeypatch):
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: None)
+
+    with pytest.raises(ConflictError):
+        study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+
+def test_does_not_call_generate_plan_when_lock_is_busy(monkeypatch):
+    """Guards the concurrency guarantee directly: when another request holds
+    the lock, Bedrock/the rule-based fallback (both behind generate_plan)
+    must never run — not just that a ConflictError happens to come out.
+    """
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: None)
+
+    call_count = {"n": 0}
+
+    def _spy(*a, **k):
+        call_count["n"] += 1
+        raise AssertionError("generate_plan must not run while another request holds the lock")
+
+    monkeypatch.setattr(study_plan_service, "generate_plan", _spy)
+
+    with pytest.raises(ConflictError):
+        study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert call_count["n"] == 0
+
+
+def test_returns_plan_completed_by_another_request_after_lock_conflict(monkeypatch):
+    completed_plan = {"plan_id": "plan-1", "status": "COMPLETED"}
+    call_count = {"n": 0}
+
+    def _get_completed_plan(*a, **k):
+        call_count["n"] += 1
+        return None if call_count["n"] == 1 else completed_plan
+
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", _get_completed_plan)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [])
+
+    result = study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert result["plan_id"] == "plan-1"
+    assert call_count["n"] == 2
+
+
+def test_marks_plan_failed_and_reraises_original_exception_on_generation_error(monkeypatch):
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+
+    def _raise_validation_error(student_id):
+        raise ValidationError("まだ学習の現在地が設定されていません。先生に設定してもらってください。")
+
+    monkeypatch.setattr(study_plan_service, "list_progresses_by_student", _raise_validation_error)
+
+    fail_calls = []
+    monkeypatch.setattr(
+        study_plan_service, "fail_plan", lambda *a, **k: fail_calls.append((a, k))
+    )
+
+    with pytest.raises(ValidationError):
+        study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert len(fail_calls) == 1
+    args, kwargs = fail_calls[0]
+    assert args[0] == "student-1"
+    assert kwargs["owner_id"] == "req-1"
+
+
+def test_lock_lost_during_persistence_returns_concurrently_completed_plan(monkeypatch):
+    completed_plan = {"plan_id": "plan-1", "status": "COMPLETED"}
+    call_count = {"n": 0}
+
+    def _get_completed_plan(*a, **k):
+        call_count["n"] += 1
+        return None if call_count["n"] == 1 else completed_plan
+
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", _get_completed_plan)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [])
+
+    def _lock_lost(**kwargs):
+        raise PlanLockLostError("lock superseded")
+
+    _wire_full_generation_chain(monkeypatch, complete_plan_with_tasks=_lock_lost)
+
+    fail_calls = []
+    monkeypatch.setattr(study_plan_service, "fail_plan", lambda *a, **k: fail_calls.append((a, k)))
+
+    result = study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert result["plan_id"] == "plan-1"
+    assert fail_calls == []  # we no longer own the row — fail_plan must not run
+
+
+def test_lock_lost_during_persistence_raises_conflict_when_no_completed_plan(monkeypatch):
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [])
+
+    def _lock_lost(**kwargs):
+        raise PlanLockLostError("lock superseded")
+
+    _wire_full_generation_chain(monkeypatch, complete_plan_with_tasks=_lock_lost)
+
+    fail_calls = []
+    monkeypatch.setattr(study_plan_service, "fail_plan", lambda *a, **k: fail_calls.append((a, k)))
+
+    with pytest.raises(ConflictError):
+        study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert fail_calls == []
+
+
+def test_fail_plan_failure_is_logged_but_does_not_hide_original_exception(monkeypatch):
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+
+    def _raise_validation_error(student_id):
+        raise ValidationError("original failure")
+
+    monkeypatch.setattr(study_plan_service, "list_progresses_by_student", _raise_validation_error)
+
+    def _fail_plan_raises(*a, **k):
+        raise RuntimeError("dynamodb unavailable")
+
+    monkeypatch.setattr(study_plan_service, "fail_plan", _fail_plan_raises)
+
+    logged = []
+    monkeypatch.setattr(study_plan_service, "log_event", lambda *a, **k: logged.append((a, k)))
+
+    with pytest.raises(ValidationError, match="original failure"):
+        study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert len(logged) == 1
+
+
+def test_successful_generation_persists_plan_and_tasks_via_single_transaction(monkeypatch):
+    monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
+    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+
+    captured = {}
+
+    def _complete_plan_with_tasks(**kwargs):
+        captured.update(kwargs)
+        return {"plan_id": "plan-1", "status": "COMPLETED"}
+
+    _wire_full_generation_chain(monkeypatch, complete_plan_with_tasks=_complete_plan_with_tasks)
+
+    result = study_plan_service.generate_plan_for_student("student-1", 15, "req-1")
+
+    assert result["plan_id"] == "plan-1"
+    assert captured["owner_id"] == "req-1"
+    assert captured["plan_id"] == "plan-1"
+    assert len(captured["tasks"]) == 1

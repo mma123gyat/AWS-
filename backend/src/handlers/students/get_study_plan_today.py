@@ -1,5 +1,5 @@
 from src.repositories.daily_conditions_repository import get_condition
-from src.repositories.study_plans_repository import get_plan
+from src.repositories.study_plans_repository import get_completed_plan
 from src.repositories.study_tasks_repository import list_tasks_by_plan
 from src.utils.auth_context import get_authenticated_user, require_role
 from src.utils.dates import today_jst
@@ -20,7 +20,7 @@ def handler(event: dict, context) -> dict:
     if int(condition["available_minutes"]) <= 0:
         return success({"condition": condition, "plan": None, "isRestDay": True})
 
-    plan = get_plan(user.user_id, today)
+    plan = get_completed_plan(user.user_id, today)
     if not plan:
         return success({"condition": condition, "plan": None})
 

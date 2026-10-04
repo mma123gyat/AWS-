@@ -1,4 +1,4 @@
-from src.repositories.study_plans_repository import get_plan
+from src.repositories.study_plans_repository import get_completed_plan
 from src.repositories.study_records_repository import list_records_by_student
 from src.repositories.users_repository import list_students_by_class_id
 from src.utils.auth_context import get_authenticated_user, require_role
@@ -14,7 +14,7 @@ def _summarize_student(student: dict) -> dict:
     student_id = student["user_id"]
     records = list_records_by_student(student_id, limit=1)
     latest_record = records[0] if records else None
-    today_plan = get_plan(student_id, today_jst())
+    today_plan = get_completed_plan(student_id, today_jst())
 
     return {
         "studentId": student_id,
