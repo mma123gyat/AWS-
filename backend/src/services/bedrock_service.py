@@ -3,6 +3,7 @@ from functools import lru_cache
 from typing import Any
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from src.models.study_plan_schema import StudyPlanValidationError, validate_study_plan_output
@@ -59,7 +60,21 @@ class BedrockGenerationError(Exception):
 
 @lru_cache(maxsize=1)
 def _client():
-    return boto3.client("bedrock-runtime", region_name=os.environ.get("AWS_REGION", "ap-northeast-1"))
+    # Budget roughly 12s for one Bedrock attempt within the 30s Lambda:
+    # 2s to connect and 10s to read, leaving room for input DB reads,
+    # rule-based fallback, transactional saving, and failure cleanup.
+    # These are socket timeouts, not a hard deadline for the whole handler.
+    # total_max_attempts includes the first call; 1 disables SDK retries
+    # and backoff even if AWS_MAX_ATTEMPTS requests more attempts.
+    return boto3.client(
+        "bedrock-runtime",
+        region_name=os.environ.get("AWS_REGION", "ap-northeast-1"),
+        config=Config(
+            connect_timeout=2,
+            read_timeout=10,
+            retries={"mode": "standard", "total_max_attempts": 1},
+        ),
+    )
 
 
 def _build_user_message(params: dict[str, Any]) -> str:
