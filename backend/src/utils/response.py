@@ -4,7 +4,10 @@ from typing import Any
 
 from src.utils.errors import ApiError
 
-_HEADERS = {"Content-Type": "application/json"}
+_HEADERS = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "http://localhost:5173",
+}
 
 
 def _json_default(obj: Any) -> Any:
