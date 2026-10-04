@@ -27,6 +27,9 @@ def _validate_task(task: Any) -> dict:
     _require_type(task["minutes"], int, "task.minutes")
     _require_type(task["description"], str, "task.description")
 
+    if task["order"] <= 0:
+        raise StudyPlanValidationError("task.order must be a positive integer")
+
     if task["minutes"] <= 0:
         raise StudyPlanValidationError("task.minutes must be positive")
 
@@ -64,6 +67,8 @@ def validate_study_plan_output(data: Any) -> dict:
     tasks = [_validate_task(task) for task in data["tasks"]]
     if sum(task["minutes"] for task in tasks) > data["total_minutes"]:
         raise StudyPlanValidationError("sum of task minutes exceeds total_minutes")
+    if len({task["order"] for task in tasks}) != len(tasks):
+        raise StudyPlanValidationError("task.order must be unique within a plan")
 
     return {
         "subject": data["subject"],

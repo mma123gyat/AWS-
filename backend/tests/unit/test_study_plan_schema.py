@@ -46,6 +46,30 @@ def test_rejects_non_positive_task_minutes():
         validate_study_plan_output(payload)
 
 
+def test_rejects_zero_task_order():
+    task_template = VALID_PAYLOAD["tasks"][0]
+    payload = {**VALID_PAYLOAD, "tasks": [{**task_template, "order": 0}]}
+    with pytest.raises(StudyPlanValidationError):
+        validate_study_plan_output(payload)
+
+
+def test_rejects_negative_task_order():
+    task_template = VALID_PAYLOAD["tasks"][0]
+    payload = {**VALID_PAYLOAD, "tasks": [{**task_template, "order": -1}]}
+    with pytest.raises(StudyPlanValidationError):
+        validate_study_plan_output(payload)
+
+
+def test_rejects_duplicate_task_order():
+    task_template = VALID_PAYLOAD["tasks"][0]
+    payload = {
+        **VALID_PAYLOAD,
+        "tasks": [{**task_template, "order": 1}, {**task_template, "order": 1}],
+    }
+    with pytest.raises(StudyPlanValidationError):
+        validate_study_plan_output(payload)
+
+
 def test_rejects_missing_required_field():
     payload = {k: v for k, v in VALID_PAYLOAD.items() if k != "reason"}
     with pytest.raises(StudyPlanValidationError):

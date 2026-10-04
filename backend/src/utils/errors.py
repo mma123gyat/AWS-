@@ -28,6 +28,11 @@ class ForbiddenError(ApiError):
     status_code = 403
 
 
+class ConflictError(ApiError):
+    code = "CONFLICT"
+    status_code = 409
+
+
 class NotFoundError(ApiError):
     code = "NOT_FOUND"
     status_code = 404
