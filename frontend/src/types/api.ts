@@ -51,3 +51,64 @@ export interface PutClassProgressRequest {
   textbookPage: string;
   status: CurriculumStatus;
 }
+
+/** メッセージ(messages_repository.put_messageの戻り値、snake_caseのまま) */
+export interface ApiMessageItem {
+  message_id: string;
+  student_id: string;
+  sort_key: string;
+  sender_user_id: string;
+  sender_role: string;
+  body: string;
+  created_at: string;
+}
+
+/** がんばりスタンプ(backend/src/utils/badge_rules.pyの戻り値) */
+export interface ApiBadge {
+  id: string;
+  label: string;
+  earned: boolean;
+}
+
+/** GET /parents/me/dashboard のレスポンス(ハンドラ内でcamelCase化済み。messagesのみ生のまま) */
+export interface ApiParentDashboard {
+  studentName: string | null;
+  weeklyStudyMinutes: number;
+  studiedDays: number;
+  recordCount: number;
+  badges: ApiBadge[];
+  messages: ApiMessageItem[];
+}
+
+/** GET /support/me/report のレスポンス要素: 教科ごとの状況 */
+export interface ApiSupportSubjectProgress {
+  subjectId: string;
+  subjectName: string;
+  understanding: number | null;
+  status: CurriculumStatus | null;
+}
+
+/** GET /support/me/report のレスポンス要素: 支援が必要そうな教科(診断ではなく教育上の事実のみ) */
+export interface ApiSupportNeededSubject {
+  subjectId: string;
+  subjectName: string;
+  reasons: string[];
+}
+
+/** GET /support/me/report のレスポンス(ハンドラ内でcamelCase化済み) */
+export interface ApiSupportReport {
+  studentId: string;
+  studentName: string | null;
+  recentStudyMinutes: number;
+  recentRecordCount: number;
+  subjectProgresses: ApiSupportSubjectProgress[];
+  supportNeededSubjects: ApiSupportNeededSubject[];
+  /** 教員側の出席・評価連携画面が未実装のため、現時点では常にnull */
+  attendance: null;
+  attendanceNote: string;
+}
+
+/** POST /support/me/messages のリクエストボディ */
+export interface PostSupportMessageRequest {
+  body: string;
+}

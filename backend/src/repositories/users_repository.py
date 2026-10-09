@@ -44,6 +44,7 @@ def create_user(
     email: str,
     role: str,
     class_id: str | None = None,
+    linked_student_id: str | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(UTC).isoformat()
     item = {
@@ -53,6 +54,7 @@ def create_user(
         "email": email,
         "role": role,
         "class_id": class_id,
+        "linked_student_id": linked_student_id,
         "created_at": now,
         "updated_at": now,
     }

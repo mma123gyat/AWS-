@@ -81,3 +81,7 @@ export function apiGet<T>(path: string): Promise<T> {
 export function apiPut<T>(path: string, payload: unknown): Promise<T> {
   return request<T>(path, { method: 'PUT', body: JSON.stringify(payload) });
 }
+
+export function apiPost<T>(path: string, payload: unknown): Promise<T> {
+  return request<T>(path, { method: 'POST', body: JSON.stringify(payload) });
+}

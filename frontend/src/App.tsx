@@ -5,10 +5,15 @@ import './App.css'
 import StudyTimeForm from './StudyTimeForm'
 import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { TeacherLayout } from './features/teacher/TeacherLayout'
-import { PlaceholderPage } from './features/teacher/pages/PlaceholderPage'
 import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
 import { TeacherDashboardPage } from './features/teacher/pages/TeacherDashboardPage'
+import { ParentLayout } from './features/parent/ParentLayout'
+import { ParentDashboardPage } from './features/parent/pages/ParentDashboardPage'
+import { SupportLayout } from './features/support/SupportLayout'
+import { SupportReportPage } from './features/support/pages/SupportReportPage'
+import { SharingSettingsPage } from './features/support/pages/SharingSettingsPage'
+import { PlaceholderPage } from './components/ui/PlaceholderPage'
 import { useAuthSession } from './hooks/useAuthSession'
 import type { Role, SessionStatus } from './hooks/useAuthSession'
 
@@ -187,7 +192,7 @@ function RoleUnknownNotice({ onLogout }: { onLogout: () => void }) {
         <p className="eyebrow">学習サポート</p>
         <h1>権限を確認できませんでした</h1>
         <p className="muted">
-          このアカウントにはTEACHER/STUDENTのいずれの権限も設定されていません。管理者にお問い合わせください。
+          このアカウントには必要な権限が設定されていません。管理者にお問い合わせください。
         </p>
         <button className="secondary" disabled={busy} onClick={handleLogout}>
           {busy ? 'ログアウト中…' : 'ログアウト'}
@@ -235,7 +240,16 @@ function RequireRole({ role, allow, fallback }: { role: Role; allow: Role; fallb
 }
 
 function homePathFor(role: Role): string {
-  return role === 'TEACHER' ? '/teacher/dashboard' : '/condition'
+  switch (role) {
+    case 'TEACHER':
+      return '/teacher/dashboard'
+    case 'PARENT':
+      return '/parent/dashboard'
+    case 'SUPPORT':
+      return '/support/report'
+    default:
+      return '/condition'
+  }
 }
 
 function App() {
@@ -251,6 +265,8 @@ function App() {
     )
   }
 
+  const homePath = homePathFor(session.role)
+
   return (
     <Routes>
       <Route
@@ -260,7 +276,7 @@ function App() {
             session.role === null ? (
               <RoleUnknownNotice onLogout={session.refresh} />
             ) : (
-              <Navigate to={homePathFor(session.role)} replace />
+              <Navigate to={homePath} replace />
             )
           ) : (
             <LoginPage onSignedIn={session.refresh} />
@@ -273,16 +289,16 @@ function App() {
           <RequireAuth status={session.status} role={session.role} onLogout={session.refresh} />
         }
       >
-        <Route path="/" element={<Navigate to={homePathFor(session.role)} replace />} />
+        <Route path="/" element={<Navigate to={homePath} replace />} />
 
-        <Route element={<RequireRole role={session.role} allow="STUDENT" fallback="/teacher/dashboard" />}>
+        <Route element={<RequireRole role={session.role} allow="STUDENT" fallback={homePath} />}>
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
             <Route path="/condition" element={<ConditionPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
           </Route>
         </Route>
 
-        <Route element={<RequireRole role={session.role} allow="TEACHER" fallback="/condition" />}>
+        <Route element={<RequireRole role={session.role} allow="TEACHER" fallback={homePath} />}>
           <Route path="/teacher" element={<TeacherLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<TeacherDashboardPage />} />
@@ -290,6 +306,21 @@ function App() {
             <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
             <Route path="logs" element={<PlaceholderPage title="学習ログ" />} />
             <Route path="alerts" element={<PlaceholderPage title="アラート" />} />
+          </Route>
+        </Route>
+
+        <Route element={<RequireRole role={session.role} allow="PARENT" fallback={homePath} />}>
+          <Route path="/parent" element={<ParentLayout email={session.email} onLogout={session.refresh} />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<ParentDashboardPage />} />
+          </Route>
+        </Route>
+
+        <Route element={<RequireRole role={session.role} allow="SUPPORT" fallback={homePath} />}>
+          <Route path="/support" element={<SupportLayout onLogout={session.refresh} />}>
+            <Route index element={<Navigate to="report" replace />} />
+            <Route path="report" element={<SupportReportPage />} />
+            <Route path="sharing" element={<SharingSettingsPage />} />
           </Route>
         </Route>
       </Route>
