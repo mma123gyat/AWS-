@@ -22,6 +22,8 @@ def handler(event: dict, context) -> dict:
     student = get_user_by_id(student_id)
     if not student or student.get("role") != "STUDENT":
         raise NotFoundError("生徒が見つかりませんでした。")
+    if not user.class_id:
+        raise ValidationError("担当クラスが設定されていません。")
     if student.get("class_id") != user.class_id:
         raise ForbiddenError("担当クラス以外の生徒は確認できません。")
 

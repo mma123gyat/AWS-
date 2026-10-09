@@ -163,6 +163,7 @@ def complete_plan_with_tasks(
     model_id: str,
     prompt_version: str,
     tasks: list[dict[str, Any]],
+    created_at: str,
 ) -> dict[str, Any]:
     """Atomically marks the plan COMPLETED and writes every task row in a
     single TransactWriteItems call: either the whole plan is persisted, or
@@ -188,6 +189,7 @@ def complete_plan_with_tasks(
         "generator": generator,
         "model_id": model_id,
         "prompt_version": prompt_version,
+        "created_at": created_at,
         "updated_at": now_iso,
     }
 

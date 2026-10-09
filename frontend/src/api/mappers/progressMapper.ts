@@ -23,9 +23,25 @@ export function toProgressSeries(
   curriculums: ApiCurriculumItem[],
   studentProgresses: ApiStudentProgressItem[],
 ): ProgressData[] {
-  const currentSchoolScore = average(curriculums.map((c) => scoreFromCurriculumStatus(c.status)));
+  const schoolScoreBySubject = new Map(
+    curriculums.map((c) => [c.subject_id, scoreFromCurriculumStatus(c.status)]),
+  );
+  const studentScoreBySubject = new Map(
+    studentProgresses.map((p) => [p.subject_id, scoreFromUnderstanding(p.understanding)]),
+  );
+
+  // 学校進度(全教科)と生徒進度(記録のある教科のみ)は母集団が異なるため、
+  // 直接平均を比較すると不自然な結果になる。仕様が無いため、両方に
+  // データが存在する教科だけを使って比較可能な母集団に揃える(最小修正)。
+  const comparableSubjectIds = [...schoolScoreBySubject.keys()].filter((id) =>
+    studentScoreBySubject.has(id),
+  );
+
+  const currentSchoolScore = average(
+    comparableSubjectIds.map((id) => schoolScoreBySubject.get(id)!),
+  );
   const currentStudentScore = average(
-    studentProgresses.map((p) => scoreFromUnderstanding(p.understanding)),
+    comparableSubjectIds.map((id) => studentScoreBySubject.get(id)!),
   );
 
   return MONTHS.map((month, index) => {
