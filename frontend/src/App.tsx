@@ -4,10 +4,15 @@ import { getCurrentUser, signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import StudyTimeForm from './StudyTimeForm'
 import { Link, Navigate, Route, Routes } from 'react-router-dom'
+import { TeacherLayout } from './features/teacher/TeacherLayout'
+import { PlaceholderPage } from './features/teacher/pages/PlaceholderPage'
+import { StudentListPage } from './features/teacher/pages/StudentListPage'
+import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
+import { TeacherDashboardPage } from './features/teacher/pages/TeacherDashboardPage'
 
 type AuthState = 'CHECKING' | 'SIGNED_OUT' | 'SIGNED_IN'
 
-function App() {
+function StudentApp() {
   const [authState, setAuthState] = useState<AuthState>('CHECKING')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -180,6 +185,34 @@ function App() {
       </section>
     </main>
   )
+}
+
+function NotFoundPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <p className="text-gray-500">ページが見つかりませんでした。</p>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<StudentApp />} />
+      <Route path="/login" element={<StudentApp />} />
+      <Route path="/condition" element={<StudentApp />} />
+      <Route path="/dashboard" element={<StudentApp />} />
+      <Route path="/teacher" element={<TeacherLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<TeacherDashboardPage />} />
+        <Route path="students" element={<StudentListPage />} />
+        <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
+        <Route path="logs" element={<PlaceholderPage title="学習ログ" />} />
+        <Route path="alerts" element={<PlaceholderPage title="アラート" />} />
+      </Route>
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
 }
 
 export default App
