@@ -3,6 +3,7 @@ import * as cdk from 'aws-cdk-lib';
 import { DataStack } from '../lib/data-stack';
 import { AuthStack } from '../lib/auth-stack';
 import { ApiStack } from '../lib/api-stack';
+import { FrontendStack } from '../lib/frontend-stack';
 
 const app = new cdk.App();
 
@@ -24,3 +25,5 @@ new ApiStack(app, 'StudyPlatformApiStack', {
   studyTasksTable: dataStack.studyTasksTable,
   studyRecordsTable: dataStack.studyRecordsTable,
 });
+
+new FrontendStack(app, 'StudyPlatformFrontendStack', { env });

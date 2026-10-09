@@ -6,5 +6,5 @@
  * TODO: Cognito統合担当がプロフィール取得APIを実装した後、ここをAPI呼び出しに置き換える。
  */
 export function useCurrentTeacherClassId(): string {
-  return import.meta.env.VITE_DEV_CLASS_ID ?? 'class-001';
+  return import.meta.env.VITE_DEV_CLASS_ID ?? 'class-1';
 }

@@ -12,33 +12,40 @@ export class ApiError extends Error {
   }
 }
 
-/**
- * 現在有効なCognitoセッションからID Tokenを取得する。未ログイン・
- * セッション切れの場合は null を返す(呼び出し元はクラッシュせず、
- * Authorizationヘッダー無しでリクエストを送る=バックエンドが401を返す)。
- */
-async function getAuthToken(): Promise<string | null> {
-  try {
-    const session = await fetchAuthSession();
-    return session.tokens?.idToken?.toString() ?? null;
-  } catch {
-    return null;
-  }
+const rawApiBase = import.meta.env.VITE_API_BASE_URL;
+
+if (!rawApiBase) {
+  throw new Error('VITE_API_BASE_URL が設定されていません。');
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const BASE_URL = rawApiBase.replace(/\/+$/, '');
+
+/**
+ * 現在有効なCognitoセッションからID Tokenを取得する。未ログイン・
+ * セッション切れ・トークン欠落の場合はApiErrorとして即座に失敗させる。
+ */
+async function getAuthToken(): Promise<string> {
+  try {
+    const session = await fetchAuthSession();
+    const token = session.tokens?.idToken?.toString();
+    if (!token) {
+      throw new ApiError('UNAUTHENTICATED', 'ログインし直してください。', 401);
+    }
+    return token;
+  } catch {
+    throw new ApiError('UNAUTHENTICATED', 'ログインし直してください。', 401);
+  }
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string> | undefined),
-  };
-  if (token) {
     // API GatewayのCognitoUserPoolsAuthorizerは「Bearer」プレフィックス無しで
     // ID Tokenそのものを期待する(frontend/src/api.tsの実装と同じ形式)。
-    headers.Authorization = token;
-  }
+    Authorization: token,
+    ...(options.headers as Record<string, string> | undefined),
+  };
 
   let response: Response;
   try {

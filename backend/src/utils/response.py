@@ -6,7 +6,7 @@ from src.utils.errors import ApiError
 
 _HEADERS = {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "http://localhost:5173",
+    "Access-Control-Allow-Origin": "*",
 }
 
 

@@ -161,31 +161,68 @@ function DashboardPage() {
   )
 }
 
+function RoleUnknownNotice({ onLogout }: { onLogout: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleLogout() {
+    if (busy) return
+
+    setBusy(true)
+    setError('')
+
+    try {
+      await signOut()
+      onLogout()
+    } catch {
+      setError('ログアウトできませんでした。もう一度お試しください。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="auth-card">
+        <p className="eyebrow">学習サポート</p>
+        <h1>権限を確認できませんでした</h1>
+        <p className="muted">
+          このアカウントにはTEACHER/STUDENTのいずれの権限も設定されていません。管理者にお問い合わせください。
+        </p>
+        <button className="secondary" disabled={busy} onClick={handleLogout}>
+          {busy ? 'ログアウト中…' : 'ログアウト'}
+        </button>
+        {error && <p className="error" role="alert">{error}</p>}
+      </section>
+    </main>
+  )
+}
+
 function NotFoundPage() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <p className="text-gray-500">ページが見つかりませんでした。</p>
     </div>
-  );
+  )
 }
 
 /** 未ログインは /login へ。SIGNED_IN だがロール不明(cognito:groups未設定)
  * は、どちらのロールガードにも入れずリダイレクトループになるのを避けるため
- * ここでエラー表示して止める。 */
-function RequireAuth({ status, role }: { status: SessionStatus; role: Role }) {
+ * ここでエラー表示して止める(どこにもNavigateしない)。 */
+function RequireAuth({
+  status,
+  role,
+  onLogout,
+}: {
+  status: SessionStatus
+  role: Role
+  onLogout: () => void
+}) {
   if (status === 'SIGNED_OUT') {
     return <Navigate to="/login" replace />
   }
   if (role === null) {
-    return (
-      <main className="auth-page">
-        <section className="auth-card">
-          <p className="error" role="alert">
-            このアカウントには権限(STUDENT/TEACHER)が設定されていません。管理者に連絡してください。
-          </p>
-        </section>
-      </main>
-    )
+    return <RoleUnknownNotice onLogout={onLogout} />
   }
   return <Outlet />
 }
@@ -195,6 +232,10 @@ function RequireRole({ role, allow, fallback }: { role: Role; allow: Role; fallb
     return <Navigate to={fallback} replace />
   }
   return <Outlet />
+}
+
+function homePathFor(role: Role): string {
+  return role === 'TEACHER' ? '/teacher/dashboard' : '/condition'
 }
 
 function App() {
@@ -210,23 +251,29 @@ function App() {
     )
   }
 
-  const homePath = session.role === 'TEACHER' ? '/teacher/dashboard' : '/condition'
-
   return (
     <Routes>
       <Route
         path="/login"
         element={
           session.status === 'SIGNED_IN' ? (
-            <Navigate to={homePath} replace />
+            session.role === null ? (
+              <RoleUnknownNotice onLogout={session.refresh} />
+            ) : (
+              <Navigate to={homePathFor(session.role)} replace />
+            )
           ) : (
             <LoginPage onSignedIn={session.refresh} />
           )
         }
       />
 
-      <Route element={<RequireAuth status={session.status} role={session.role} />}>
-        <Route path="/" element={<Navigate to={homePath} replace />} />
+      <Route
+        element={
+          <RequireAuth status={session.status} role={session.role} onLogout={session.refresh} />
+        }
+      >
+        <Route path="/" element={<Navigate to={homePathFor(session.role)} replace />} />
 
         <Route element={<RequireRole role={session.role} allow="STUDENT" fallback="/teacher/dashboard" />}>
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
@@ -249,7 +296,7 @@ function App() {
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
-  );
+  )
 }
 
 export default App
