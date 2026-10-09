@@ -83,7 +83,7 @@ def _build_task(plan_id: str, task_order: int = 1) -> dict:
     )
 
 
-def _complete(plan_id: str, owner_id: str, tasks: list[dict]) -> dict:
+def _complete(plan_id: str, owner_id: str, tasks: list[dict], created_at: str = "2026-01-01T00:00:00+00:00") -> dict:
     return study_plans_repository.complete_plan_with_tasks(
         student_id=STUDENT_ID,
         plan_date=PLAN_DATE,
@@ -97,6 +97,7 @@ def _complete(plan_id: str, owner_id: str, tasks: list[dict]) -> dict:
         model_id="rule-based-v1",
         prompt_version="v1",
         tasks=tasks,
+        created_at=created_at,
     )
 
 

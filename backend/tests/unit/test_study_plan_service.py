@@ -167,7 +167,11 @@ def test_returns_plan_completed_by_another_request_after_lock_conflict(monkeypat
 
 def test_marks_plan_failed_and_reraises_original_exception_on_generation_error(monkeypatch):
     monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
-    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "try_acquire_lock",
+        lambda *a, **k: {"plan_id": "plan-1", "created_at": "2026-01-01T00:00:00+00:00"},
+    )
 
     def _raise_validation_error(student_id):
         raise ValidationError("まだ学習の現在地が設定されていません。先生に設定してもらってください。")
@@ -197,7 +201,11 @@ def test_lock_lost_during_persistence_returns_concurrently_completed_plan(monkey
         return None if call_count["n"] == 1 else completed_plan
 
     monkeypatch.setattr(study_plan_service, "get_completed_plan", _get_completed_plan)
-    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "try_acquire_lock",
+        lambda *a, **k: {"plan_id": "plan-1", "created_at": "2026-01-01T00:00:00+00:00"},
+    )
     monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [])
 
     def _lock_lost(**kwargs):
@@ -216,7 +224,11 @@ def test_lock_lost_during_persistence_returns_concurrently_completed_plan(monkey
 
 def test_lock_lost_during_persistence_raises_conflict_when_no_completed_plan(monkeypatch):
     monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
-    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "try_acquire_lock",
+        lambda *a, **k: {"plan_id": "plan-1", "created_at": "2026-01-01T00:00:00+00:00"},
+    )
     monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [])
 
     def _lock_lost(**kwargs):
@@ -235,7 +247,11 @@ def test_lock_lost_during_persistence_raises_conflict_when_no_completed_plan(mon
 
 def test_fail_plan_failure_is_logged_but_does_not_hide_original_exception(monkeypatch):
     monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
-    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "try_acquire_lock",
+        lambda *a, **k: {"plan_id": "plan-1", "created_at": "2026-01-01T00:00:00+00:00"},
+    )
 
     def _raise_validation_error(student_id):
         raise ValidationError("original failure")
@@ -258,7 +274,11 @@ def test_fail_plan_failure_is_logged_but_does_not_hide_original_exception(monkey
 
 def test_successful_generation_persists_plan_and_tasks_via_single_transaction(monkeypatch):
     monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
-    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "try_acquire_lock",
+        lambda *a, **k: {"plan_id": "plan-1", "created_at": "2026-01-01T00:00:00+00:00"},
+    )
 
     captured = {}
 
@@ -284,7 +304,11 @@ def test_timeout_fallback_reaches_save_and_cleans_up_on_save_failure(monkeypatch
     real_build_task_item = study_plan_service.build_task_item
     monkeypatch.setenv("BEDROCK_MODEL_ID", "test-model")
     monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: None)
-    monkeypatch.setattr(study_plan_service, "try_acquire_lock", lambda *a, **k: {"plan_id": "plan-1"})
+    monkeypatch.setattr(
+        study_plan_service,
+        "try_acquire_lock",
+        lambda *a, **k: {"plan_id": "plan-1", "created_at": "2026-01-01T00:00:00+00:00"},
+    )
     captured = {}
     persistence_error = PlanPersistenceError("save failed")
 

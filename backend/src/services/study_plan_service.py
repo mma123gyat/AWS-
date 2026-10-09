@@ -143,6 +143,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
             model_id=plan["model_id"],
             prompt_version=plan["prompt_version"],
             tasks=task_items,
+            created_at=lock["created_at"],
         )
     except PlanLockLostError:
         # Our lock was already superseded (timeout takeover) before we could
