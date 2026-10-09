@@ -17,6 +17,7 @@ export class DataStack extends cdk.Stack {
   public readonly studyPlansTable: dynamodb.Table;
   public readonly studyTasksTable: dynamodb.Table;
   public readonly studyRecordsTable: dynamodb.Table;
+  public readonly messagesTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -96,6 +97,14 @@ export class DataStack extends cdk.Stack {
 
     this.studyRecordsTable = new dynamodb.Table(this, 'StudyRecordsTable', {
       tableName: 'StudyRecords',
+      partitionKey: { name: 'student_id', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'sort_key', type: dynamodb.AttributeType.STRING },
+      billingMode,
+      removalPolicy,
+    });
+
+    this.messagesTable = new dynamodb.Table(this, 'MessagesTable', {
+      tableName: 'Messages',
       partitionKey: { name: 'student_id', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'sort_key', type: dynamodb.AttributeType.STRING },
       billingMode,

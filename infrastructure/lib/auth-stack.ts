@@ -58,6 +58,16 @@ export class AuthStack extends cdk.Stack {
       groupName: 'TEACHER',
     });
 
+    new cognito.CfnUserPoolGroup(this, 'ParentGroup', {
+      userPoolId: this.userPool.userPoolId,
+      groupName: 'PARENT',
+    });
+
+    new cognito.CfnUserPoolGroup(this, 'SupportGroup', {
+      userPoolId: this.userPool.userPoolId,
+      groupName: 'SUPPORT',
+    });
+
     new cdk.CfnOutput(this, 'UserPoolId', { value: this.userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', { value: this.userPoolClient.userPoolClientId });
   }

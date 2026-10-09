@@ -13,6 +13,7 @@ class AuthenticatedUser:
     email: str
     role: str
     class_id: str | None
+    linked_student_id: str | None
 
 
 def _parse_groups(raw_groups: str | list[str] | None) -> list[str]:
@@ -53,6 +54,7 @@ def get_authenticated_user(event: dict[str, Any]) -> AuthenticatedUser:
         email=user.get("email", ""),
         role=role,
         class_id=user.get("class_id"),
+        linked_student_id=user.get("linked_student_id"),
     )
 
 

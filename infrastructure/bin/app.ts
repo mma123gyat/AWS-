@@ -24,6 +24,7 @@ new ApiStack(app, 'StudyPlatformApiStack', {
   studyPlansTable: dataStack.studyPlansTable,
   studyTasksTable: dataStack.studyTasksTable,
   studyRecordsTable: dataStack.studyRecordsTable,
+  messagesTable: dataStack.messagesTable,
 });
 
 new FrontendStack(app, 'StudyPlatformFrontendStack', { env });

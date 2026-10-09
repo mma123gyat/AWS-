@@ -18,6 +18,7 @@ export interface ApiStackProps extends cdk.StackProps {
   studyPlansTable: dynamodb.Table;
   studyTasksTable: dynamodb.Table;
   studyRecordsTable: dynamodb.Table;
+  messagesTable: dynamodb.Table;
 }
 
 const BACKEND_ASSET_PATH = path.join(__dirname, '../../backend');
@@ -53,6 +54,7 @@ export class ApiStack extends cdk.Stack {
       STUDY_PLANS_TABLE_NAME: props.studyPlansTable.tableName,
       STUDY_TASKS_TABLE_NAME: props.studyTasksTable.tableName,
       STUDY_RECORDS_TABLE_NAME: props.studyRecordsTable.tableName,
+      MESSAGES_TABLE_NAME: props.messagesTable.tableName,
       BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID ?? 'global.anthropic.claude-sonnet-5',
     };
 
@@ -249,6 +251,36 @@ export class ApiStack extends cdk.Stack {
     this.api.root
       .addResource('study-records')
       .addMethod('POST', new apigateway.LambdaIntegration(postStudyRecordFn), authorizedMethodOptions);
+
+    // /parents/me/dashboard
+    const getParentDashboardFn = createFunction(
+      'GetParentDashboardFn',
+      'src.handlers.parents.get_dashboard.handler',
+    );
+    props.studyRecordsTable.grantReadData(getParentDashboardFn);
+    props.messagesTable.grantReadData(getParentDashboardFn);
+    this.api.root
+      .addResource('parents')
+      .addResource('me')
+      .addResource('dashboard')
+      .addMethod('GET', new apigateway.LambdaIntegration(getParentDashboardFn), authorizedMethodOptions);
+
+    // /support/me/report, /support/me/messages
+    const supportMe = this.api.root.addResource('support').addResource('me');
+
+    const getSupportReportFn = createFunction('GetSupportReportFn', 'src.handlers.support.get_report.handler');
+    props.studentProgressesTable.grantReadData(getSupportReportFn);
+    props.studyRecordsTable.grantReadData(getSupportReportFn);
+    props.subjectsTable.grantReadData(getSupportReportFn);
+    supportMe
+      .addResource('report')
+      .addMethod('GET', new apigateway.LambdaIntegration(getSupportReportFn), authorizedMethodOptions);
+
+    const postSupportMessageFn = createFunction('PostSupportMessageFn', 'src.handlers.support.post_message.handler');
+    props.messagesTable.grantReadWriteData(postSupportMessageFn);
+    supportMe
+      .addResource('messages')
+      .addMethod('POST', new apigateway.LambdaIntegration(postSupportMessageFn), authorizedMethodOptions);
 
     new cdk.CfnOutput(this, 'ApiUrl', { value: this.api.url });
   }
