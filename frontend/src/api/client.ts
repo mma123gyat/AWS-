@@ -20,6 +20,10 @@ if (!rawApiBase) {
 
 const BASE_URL = rawApiBase.replace(/\/+$/, '');
 
+/**
+ * 現在有効なCognitoセッションからID Tokenを取得する。未ログイン・
+ * セッション切れ・トークン欠落の場合はApiErrorとして即座に失敗させる。
+ */
 async function getAuthToken(): Promise<string> {
   try {
     const session = await fetchAuthSession();
@@ -37,12 +41,32 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // API GatewayのCognitoUserPoolsAuthorizerは「Bearer」プレフィックス無しで
+    // ID Tokenそのものを期待する(frontend/src/api.tsの実装と同じ形式)。
     Authorization: token,
     ...(options.headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  const body = (await response.json()) as ApiEnvelope<T>;
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError('NETWORK_ERROR', 'APIに接続できませんでした。通信状態を確認してください。', 0);
+  }
+
+  if (response.status === 401) {
+    throw new ApiError('UNAUTHORIZED', 'ログインし直してください。', 401);
+  }
+  if (response.status === 403) {
+    throw new ApiError('FORBIDDEN', 'この操作を行う権限がありません。', 403);
+  }
+
+  let body: ApiEnvelope<T>;
+  try {
+    body = (await response.json()) as ApiEnvelope<T>;
+  } catch {
+    throw new ApiError('INVALID_RESPONSE', 'サーバーからの応答を解析できませんでした。', response.status);
+  }
 
   if (!body.success) {
     throw new ApiError(body.error.code, body.error.message, response.status);

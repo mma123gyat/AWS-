@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent } from 'react'
 import { signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import StudyTimeForm from './StudyTimeForm'
@@ -10,20 +10,9 @@ import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
 import { TeacherDashboardPage } from './features/teacher/pages/TeacherDashboardPage'
 import { useAuthSession } from './hooks/useAuthSession'
-import type { Role } from './hooks/useAuthSession'
+import type { Role, SessionStatus } from './hooks/useAuthSession'
 
-function AuthPageShell({ children }: { children: ReactNode }) {
-  return (
-    <main className="auth-page">
-      <section className="auth-card">
-        <p className="eyebrow">学習サポート</p>
-        {children}
-      </section>
-    </main>
-  )
-}
-
-function LoginForm({ onSignedIn }: { onSignedIn: () => void }) {
+function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -67,44 +56,47 @@ function LoginForm({ onSignedIn }: { onSignedIn: () => void }) {
   }
 
   return (
-    <AuthPageShell>
-      <h1>ログイン</h1>
-      <p className="muted">アカウント情報を入力してください。</p>
+    <main className="auth-page">
+      <section className="auth-card">
+        <p className="eyebrow">学習サポート</p>
+        <h1>ログイン</h1>
+        <p className="muted">アカウント情報を入力してください。</p>
 
-      <form onSubmit={handleLogin}>
-        <label htmlFor="email">メールアドレス</label>
-        <input
-          id="email"
-          type="email"
-          autoComplete="username"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          disabled={busy}
-          required
-        />
+        <form onSubmit={handleLogin}>
+          <label htmlFor="email">メールアドレス</label>
+          <input
+            id="email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={busy}
+            required
+          />
 
-        <label htmlFor="password">パスワード</label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={busy}
-          required
-        />
+          <label htmlFor="password">パスワード</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={busy}
+            required
+          />
 
-        <button type="submit" disabled={busy}>
-          {busy ? 'ログイン中…' : 'ログイン'}
-        </button>
-      </form>
+          <button type="submit" disabled={busy}>
+            {busy ? 'ログイン中…' : 'ログイン'}
+          </button>
+        </form>
 
-      {error && <p className="error" role="alert">{error}</p>}
-    </AuthPageShell>
+        {error && <p className="error" role="alert">{error}</p>}
+      </section>
+    </main>
   )
 }
 
-function StudentShell({ loginEmail, onSignedOut }: { loginEmail: string; onSignedOut: () => void }) {
+function StudentLayout({ email, onLogout }: { email: string; onLogout: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -116,7 +108,7 @@ function StudentShell({ loginEmail, onSignedOut }: { loginEmail: string; onSigne
 
     try {
       await signOut()
-      onSignedOut()
+      onLogout()
     } catch {
       setError('ログアウトできませんでした。もう一度お試しください。')
     } finally {
@@ -125,17 +117,24 @@ function StudentShell({ loginEmail, onSignedOut }: { loginEmail: string; onSigne
   }
 
   return (
-    <AuthPageShell>
-      {loginEmail && <p>{loginEmail}</p>}
+    <main className="auth-page">
+      <section className="auth-card">
+        <p className="eyebrow">学習サポート</p>
+        {email && <p>{email}</p>}
 
-      <Outlet />
+        <Outlet />
 
-      <button className="secondary" disabled={busy} onClick={handleLogout}>
-        {busy ? 'ログアウト中…' : 'ログアウト'}
-      </button>
+        <button
+          className="secondary"
+          disabled={busy}
+          onClick={handleLogout}
+        >
+          {busy ? 'ログアウト中…' : 'ログアウト'}
+        </button>
 
-      {error && <p className="error" role="alert">{error}</p>}
-    </AuthPageShell>
+        {error && <p className="error" role="alert">{error}</p>}
+      </section>
+    </main>
   )
 }
 
@@ -148,7 +147,7 @@ function ConditionPage() {
   )
 }
 
-function StudentDashboardPage() {
+function DashboardPage() {
   return (
     <>
       <h1>ダッシュボード</h1>
@@ -162,7 +161,7 @@ function StudentDashboardPage() {
   )
 }
 
-function RoleUnknownNotice() {
+function RoleUnknownNotice({ onLogout }: { onLogout: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -174,24 +173,28 @@ function RoleUnknownNotice() {
 
     try {
       await signOut()
-      window.location.assign('/login')
+      onLogout()
     } catch {
       setError('ログアウトできませんでした。もう一度お試しください。')
+    } finally {
       setBusy(false)
     }
   }
 
   return (
-    <AuthPageShell>
-      <h1>権限を確認できませんでした</h1>
-      <p className="muted">
-        このアカウントにはTEACHER/STUDENTのいずれの権限も設定されていません。管理者にお問い合わせください。
-      </p>
-      <button className="secondary" disabled={busy} onClick={handleLogout}>
-        {busy ? 'ログアウト中…' : 'ログアウト'}
-      </button>
-      {error && <p className="error" role="alert">{error}</p>}
-    </AuthPageShell>
+    <main className="auth-page">
+      <section className="auth-card">
+        <p className="eyebrow">学習サポート</p>
+        <h1>権限を確認できませんでした</h1>
+        <p className="muted">
+          このアカウントにはTEACHER/STUDENTのいずれの権限も設定されていません。管理者にお問い合わせください。
+        </p>
+        <button className="secondary" disabled={busy} onClick={handleLogout}>
+          {busy ? 'ログアウト中…' : 'ログアウト'}
+        </button>
+        {error && <p className="error" role="alert">{error}</p>}
+      </section>
+    </main>
   )
 }
 
@@ -203,92 +206,91 @@ function NotFoundPage() {
   )
 }
 
-function HomeOrNotice({ role }: { role: Role }) {
-  if (role === null) {
-    return <RoleUnknownNotice />
-  }
-  return <Navigate to={role === 'TEACHER' ? '/teacher/dashboard' : '/condition'} replace />
-}
-
-function RequireAuth({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
-  if (!signedIn) {
+/** 未ログインは /login へ。SIGNED_IN だがロール不明(cognito:groups未設定)
+ * は、どちらのロールガードにも入れずリダイレクトループになるのを避けるため
+ * ここでエラー表示して止める(どこにもNavigateしない)。 */
+function RequireAuth({
+  status,
+  role,
+  onLogout,
+}: {
+  status: SessionStatus
+  role: Role
+  onLogout: () => void
+}) {
+  if (status === 'SIGNED_OUT') {
     return <Navigate to="/login" replace />
   }
-  return <>{children}</>
+  if (role === null) {
+    return <RoleUnknownNotice onLogout={onLogout} />
+  }
+  return <Outlet />
 }
 
-function RequireRole({
-  role,
-  allow,
-  children,
-}: {
-  role: Role
-  allow: 'TEACHER' | 'STUDENT'
-  children: ReactNode
-}) {
-  if (role === null) {
-    return <RoleUnknownNotice />
+function RequireRole({ role, allow, fallback }: { role: Role; allow: Role; fallback: string }) {
+  if (role !== allow) {
+    return <Navigate to={fallback} replace />
   }
-  if (allow === 'TEACHER' && role !== 'TEACHER') {
-    return <Navigate to="/condition" replace />
-  }
-  if (allow === 'STUDENT' && role === 'TEACHER') {
-    return <Navigate to="/teacher/dashboard" replace />
-  }
-  return <>{children}</>
+  return <Outlet />
+}
+
+function homePathFor(role: Role): string {
+  return role === 'TEACHER' ? '/teacher/dashboard' : '/condition'
 }
 
 function App() {
-  const { status, role, loginEmail, refresh } = useAuthSession()
+  const session = useAuthSession()
 
-  if (status === 'CHECKING') {
+  if (session.status === 'CHECKING') {
     return (
-      <AuthPageShell>
-        <p role="status">ログイン状態を確認しています…</p>
-      </AuthPageShell>
+      <main className="auth-page">
+        <section className="auth-card">
+          <p role="status">ログイン状態を確認しています…</p>
+        </section>
+      </main>
     )
   }
-
-  const signedIn = status === 'SIGNED_IN'
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={signedIn ? <HomeOrNotice role={role} /> : <LoginForm onSignedIn={refresh} />}
+        element={
+          session.status === 'SIGNED_IN' ? (
+            session.role === null ? (
+              <RoleUnknownNotice onLogout={session.refresh} />
+            ) : (
+              <Navigate to={homePathFor(session.role)} replace />
+            )
+          ) : (
+            <LoginPage onSignedIn={session.refresh} />
+          )
+        }
       />
 
       <Route
-        path="/"
-        element={signedIn ? <HomeOrNotice role={role} /> : <Navigate to="/login" replace />}
-      />
+        element={
+          <RequireAuth status={session.status} role={session.role} onLogout={session.refresh} />
+        }
+      >
+        <Route path="/" element={<Navigate to={homePathFor(session.role)} replace />} />
 
-      <Route element={<RequireAuth signedIn={signedIn}><Outlet /></RequireAuth>}>
-        <Route
-          element={
-            <RequireRole role={role} allow="STUDENT">
-              <StudentShell loginEmail={loginEmail} onSignedOut={refresh} />
-            </RequireRole>
-          }
-        >
-          <Route path="condition" element={<ConditionPage />} />
-          <Route path="dashboard" element={<StudentDashboardPage />} />
+        <Route element={<RequireRole role={session.role} allow="STUDENT" fallback="/teacher/dashboard" />}>
+          <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
+            <Route path="/condition" element={<ConditionPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+          </Route>
         </Route>
 
-        <Route
-          path="teacher"
-          element={
-            <RequireRole role={role} allow="TEACHER">
-              <TeacherLayout />
-            </RequireRole>
-          }
-        >
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<TeacherDashboardPage />} />
-          <Route path="students" element={<StudentListPage />} />
-          <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
-          <Route path="logs" element={<PlaceholderPage title="学習ログ" />} />
-          <Route path="alerts" element={<PlaceholderPage title="アラート" />} />
+        <Route element={<RequireRole role={session.role} allow="TEACHER" fallback="/condition" />}>
+          <Route path="/teacher" element={<TeacherLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<TeacherDashboardPage />} />
+            <Route path="students" element={<StudentListPage />} />
+            <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
+            <Route path="logs" element={<PlaceholderPage title="学習ログ" />} />
+            <Route path="alerts" element={<PlaceholderPage title="アラート" />} />
+          </Route>
         </Route>
       </Route>
 

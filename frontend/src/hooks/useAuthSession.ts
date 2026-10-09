@@ -1,57 +1,63 @@
-import { useCallback, useEffect, useState } from 'react'
-import { fetchAuthSession } from 'aws-amplify/auth'
+import { useCallback, useEffect, useState } from 'react';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
-export type AuthStatus = 'CHECKING' | 'SIGNED_OUT' | 'SIGNED_IN'
-export type Role = 'TEACHER' | 'STUDENT' | null
+export type Role = 'TEACHER' | 'STUDENT' | null;
+export type SessionStatus = 'CHECKING' | 'SIGNED_OUT' | 'SIGNED_IN';
 
-type AuthSessionState = {
-  status: AuthStatus
-  role: Role
-  loginEmail: string
+export interface AuthSession {
+  status: SessionStatus;
+  role: Role;
+  email: string;
+  /** セッション・ロールを再取得する(ログイン直後やリロード時に呼ぶ)。 */
+  refresh: () => Promise<void>;
 }
 
-function resolveRole(groups: unknown): Role {
-  if (!Array.isArray(groups)) return null
-  if (groups.includes('TEACHER')) return 'TEACHER'
-  if (groups.includes('STUDENT')) return 'STUDENT'
-  return null
+function resolveRole(groupsClaim: unknown): Role {
+  const groups = Array.isArray(groupsClaim)
+    ? groupsClaim
+    : typeof groupsClaim === 'string'
+      ? [groupsClaim]
+      : [];
+  if (groups.includes('TEACHER')) return 'TEACHER';
+  if (groups.includes('STUDENT')) return 'STUDENT';
+  return null;
 }
-
-const INITIAL_STATE: AuthSessionState = { status: 'CHECKING', role: null, loginEmail: '' }
 
 /**
- * Cognitoの現在の有効なセッションを常に正とする認証状態。
- * ロールはlocalStorage等に保存せず、都度 fetchAuthSession() の
- * ID Token から cognito:groups を読み直す。
+ * CognitoのID Tokenから現在のセッション状態とロール(cognito:groups)を
+ * 解決する。ページ読み込み・リロード時にも自動実行されるため、
+ * 「ログイン済み=生徒」のような決め打ちをせず、常にクレームからロールを
+ * 復元する。
  */
-export function useAuthSession() {
-  const [state, setState] = useState<AuthSessionState>(INITIAL_STATE)
+export function useAuthSession(): AuthSession {
+  const [status, setStatus] = useState<SessionStatus>('CHECKING');
+  const [role, setRole] = useState<Role>(null);
+  const [email, setEmail] = useState('');
 
   const refresh = useCallback(async () => {
+    setStatus('CHECKING');
     try {
-      const session = await fetchAuthSession()
-      const idToken = session.tokens?.idToken
-
+      const session = await fetchAuthSession();
+      const idToken = session.tokens?.idToken;
       if (!idToken) {
-        setState({ status: 'SIGNED_OUT', role: null, loginEmail: '' })
-        return
+        setRole(null);
+        setEmail('');
+        setStatus('SIGNED_OUT');
+        return;
       }
-
-      const payload = idToken.payload
-      const email = typeof payload.email === 'string' ? payload.email : ''
-      setState({
-        status: 'SIGNED_IN',
-        role: resolveRole(payload['cognito:groups']),
-        loginEmail: email,
-      })
+      setRole(resolveRole(idToken.payload['cognito:groups']));
+      setEmail(typeof idToken.payload.email === 'string' ? idToken.payload.email : '');
+      setStatus('SIGNED_IN');
     } catch {
-      setState({ status: 'SIGNED_OUT', role: null, loginEmail: '' })
+      setRole(null);
+      setEmail('');
+      setStatus('SIGNED_OUT');
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    void refresh();
+  }, [refresh]);
 
-  return { ...state, refresh }
+  return { status, role, email, refresh };
 }

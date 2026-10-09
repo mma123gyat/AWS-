@@ -3,10 +3,10 @@ import { fetchAuthSession } from 'aws-amplify/auth'
 const rawApiBase = import.meta.env.VITE_API_BASE_URL
 
 if (!rawApiBase) {
-  throw new Error('VITE_API_BASE_URL が設定されていません。')
+  throw new Error('VITE_API_BASE_URL が設定されていません。frontend/.env を確認してください。')
 }
 
-const API_BASE = rawApiBase.replace(/\/$/, '')
+const API_BASE = rawApiBase.replace(/\/+$/, '')
 
 export type AvailableMinutes = 0 | 5 | 15 | 30
 
