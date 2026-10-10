@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import StudyTimeForm from './StudyTimeForm'
-import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { TeacherLayout } from './features/teacher/TeacherLayout'
 import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
@@ -13,6 +13,7 @@ import { ParentDashboardPage } from './features/parent/pages/ParentDashboardPage
 import { SupportLayout } from './features/support/SupportLayout'
 import { SupportReportPage } from './features/support/pages/SupportReportPage'
 import { SharingSettingsPage } from './features/support/pages/SharingSettingsPage'
+import { StudentDashboardPage } from './features/student/pages/StudentDashboardPage'
 import { PlaceholderPage } from './components/ui/PlaceholderPage'
 import { useAuthSession } from './hooks/useAuthSession'
 import type { Role, SessionStatus } from './hooks/useAuthSession'
@@ -152,20 +153,6 @@ function ConditionPage() {
   )
 }
 
-function DashboardPage() {
-  return (
-    <>
-      <h1>ダッシュボード</h1>
-      <p className="muted">
-        今日も、自分のペースで進めましょう。
-      </p>
-      <Link to="/condition">
-        学習時間を選び直す
-      </Link>
-    </>
-  )
-}
-
 function RoleUnknownNotice({ onLogout }: { onLogout: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -294,12 +281,12 @@ function App() {
         <Route element={<RequireRole role={session.role} allow="STUDENT" fallback={homePath} />}>
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
             <Route path="/condition" element={<ConditionPage />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<StudentDashboardPage />} />
           </Route>
         </Route>
 
         <Route element={<RequireRole role={session.role} allow="TEACHER" fallback={homePath} />}>
-          <Route path="/teacher" element={<TeacherLayout />}>
+          <Route path="/teacher" element={<TeacherLayout onLogout={session.refresh} />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<TeacherDashboardPage />} />
             <Route path="students" element={<StudentListPage />} />
