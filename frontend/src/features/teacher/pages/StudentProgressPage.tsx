@@ -50,14 +50,22 @@ export function StudentProgressPage() {
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-700">学校進度登録</h2>
           <SchoolProgressForm
-            onSubmit={(input) => putClassProgress(classId, input).then(() => undefined)}
+            onSubmit={(input) =>
+              putClassProgress(classId, input).then(() => {
+                state.refetch();
+              })
+            }
           />
         </section>
 
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-700">生徒の現在地登録</h2>
           <StudentProgressForm
-            onSubmit={(input) => putStudentProgress(studentId, input).then(() => undefined)}
+            onSubmit={(input) =>
+              putStudentProgress(studentId, input).then(() => {
+                state.refetch();
+              })
+            }
           />
         </section>
       </div>

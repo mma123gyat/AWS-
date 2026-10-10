@@ -1,5 +1,7 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
+
+from src.utils.dates import jst_date_from_iso
 
 # MVP用の簡易バッジ判定ルール(正式仕様なし、デモとして妥当な基準)。
 # 直近7日間(今日を含む)のStudyRecordsとStudentProgressesだけから計算し、
@@ -16,13 +18,7 @@ TOTAL_MINUTES_THRESHOLD = 60
 
 
 def _study_date(record: dict[str, Any]) -> date | None:
-    completed_at = record.get("completed_at")
-    if not completed_at:
-        return None
-    try:
-        return datetime.fromisoformat(completed_at).date()
-    except ValueError:
-        return None
+    return jst_date_from_iso(record.get("completed_at"))
 
 
 def _recent_records(records: list[dict[str, Any]], today: date) -> list[dict[str, Any]]:

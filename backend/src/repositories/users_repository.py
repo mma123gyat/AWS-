@@ -60,3 +60,23 @@ def create_user(
     }
     _table().put_item(Item=item)
     return item
+
+
+def update_user_fields(user_id: str, **fields: Any) -> dict[str, Any]:
+    """既存ユーザー行の一部フィールドのみを更新する。user_idは変更しない
+
+    (既存のStudentProgresses/StudyRecords/StudyPlans/StudyTasksがstudent_id=user_id
+    で参照しているため、user_idの再発行は参照を壊す)。
+    """
+    names = {f"#{key}": key for key in fields}
+    values: dict[str, Any] = {f":{key}": value for key, value in fields.items()}
+    values[":updated_at"] = datetime.now(UTC).isoformat()
+    set_clause = ", ".join(f"#{key} = :{key}" for key in fields)
+    response = _table().update_item(
+        Key={"user_id": user_id},
+        UpdateExpression=f"SET {set_clause}, updated_at = :updated_at",
+        ExpressionAttributeNames=names,
+        ExpressionAttributeValues=values,
+        ReturnValues="ALL_NEW",
+    )
+    return response["Attributes"]

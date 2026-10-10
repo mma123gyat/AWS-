@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 
 from src.repositories.school_classes_repository import put_class
 from src.repositories.subjects_repository import put_subject
-from src.repositories.users_repository import create_user, get_user_by_cognito_sub
+from src.repositories.users_repository import create_user, get_user_by_cognito_sub, update_user_fields
 
 load_dotenv(override=True)
 
@@ -48,36 +48,42 @@ def _sub_of(user: dict) -> str:
 def _get_or_create_cognito_user(cognito_client, user_pool_id: str, email: str, name: str, group: str) -> str:
     """Returns the Cognito `sub` for `email`, creating the user only if it
     doesn't already exist (re-running this script must never fail on
-    UsernameExistsException nor reset an already-configured account)."""
+    UsernameExistsException nor reset an already-configured account).
+
+    Group membership is (re-)ensured on every run, including for a
+    pre-existing user: admin_add_user_to_group is safe to call when the user
+    is already a member of the group (it's a no-op, not an error), so this
+    makes "re-run converges to the required demo state" actually true for
+    group membership too, without ever touching the existing password."""
     try:
         existing = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=email)
-        return _sub_of(existing)
+        sub = _sub_of(existing)
     except cognito_client.exceptions.UserNotFoundException:
-        pass
+        cognito_client.admin_create_user(
+            UserPoolId=user_pool_id,
+            Username=email,
+            UserAttributes=[
+                {"Name": "email", "Value": email},
+                {"Name": "email_verified", "Value": "true"},
+                {"Name": "name", "Value": name},
+            ],
+            MessageAction="SUPPRESS",
+        )
+        cognito_client.admin_set_user_password(
+            UserPoolId=user_pool_id,
+            Username=email,
+            Password=DEMO_PASSWORD,
+            Permanent=True,
+        )
+        user = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=email)
+        sub = _sub_of(user)
 
-    cognito_client.admin_create_user(
-        UserPoolId=user_pool_id,
-        Username=email,
-        UserAttributes=[
-            {"Name": "email", "Value": email},
-            {"Name": "email_verified", "Value": "true"},
-            {"Name": "name", "Value": name},
-        ],
-        MessageAction="SUPPRESS",
-    )
-    cognito_client.admin_set_user_password(
-        UserPoolId=user_pool_id,
-        Username=email,
-        Password=DEMO_PASSWORD,
-        Permanent=True,
-    )
     cognito_client.admin_add_user_to_group(
         UserPoolId=user_pool_id,
         Username=email,
         GroupName=group,
     )
-    user = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=email)
-    return _sub_of(user)
+    return sub
 
 
 def _get_or_create_user_row(
@@ -92,19 +98,32 @@ def _get_or_create_user_row(
     doesn't already exist. A new user_id is only minted on first creation —
     re-running never changes an existing user's id, so it never breaks
     existing StudentProgresses/StudyRecords/StudyPlans/StudyTasks rows that
-    reference that student_id."""
+    reference that student_id.
+
+    For a pre-existing row, class_id/linked_student_id are backfilled in
+    place (same user_id, via update_user_fields) whenever they're missing or
+    don't match the expected demo value, so re-running actually converges
+    the row to the required demo state instead of silently leaving it stale."""
     existing = get_user_by_cognito_sub(cognito_sub)
-    if existing is not None:
+    if existing is None:
+        return create_user(
+            str(uuid.uuid4()),
+            cognito_sub,
+            name,
+            email,
+            role,
+            class_id=class_id,
+            linked_student_id=linked_student_id,
+        )
+
+    updates = {}
+    if class_id is not None and existing.get("class_id") != class_id:
+        updates["class_id"] = class_id
+    if linked_student_id is not None and existing.get("linked_student_id") != linked_student_id:
+        updates["linked_student_id"] = linked_student_id
+    if not updates:
         return existing
-    return create_user(
-        str(uuid.uuid4()),
-        cognito_sub,
-        name,
-        email,
-        role,
-        class_id=class_id,
-        linked_student_id=linked_student_id,
-    )
+    return update_user_fields(existing["user_id"], **updates)
 
 
 def main() -> None:
