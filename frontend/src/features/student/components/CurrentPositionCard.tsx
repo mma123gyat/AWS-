@@ -19,7 +19,7 @@ export function CurrentPositionCard({
         ) : (
           <div className="mt-4 space-y-2">
             <p className="text-lg font-semibold text-gray-900">{schoolCurrentPosition.unit_name}</p>
-            <p className="text-sm text-gray-500">教科書 {schoolCurrentPosition.textbook_page}ページ</p>
+            <p className="text-sm text-gray-500">教科書 {schoolCurrentPosition.textbook_page}</p>
             <StatusPill status={schoolCurrentPosition.status} />
           </div>
         )}

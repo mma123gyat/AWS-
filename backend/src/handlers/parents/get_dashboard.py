@@ -1,11 +1,11 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from src.repositories.messages_repository import list_messages_by_student
 from src.repositories.study_records_repository import list_records_by_student
 from src.repositories.users_repository import get_user_by_id
 from src.utils.auth_context import get_authenticated_user, require_role
 from src.utils.badge_rules import compute_badges
-from src.utils.dates import today_jst
+from src.utils.dates import jst_date_from_iso, today_jst
 from src.utils.errors import ValidationError
 from src.utils.handler_wrapper import lambda_handler
 from src.utils.response import success
@@ -18,12 +18,8 @@ def _recent_records(records: list[dict], today_str: str) -> list[dict]:
     window_start = today - timedelta(days=WINDOW_DAYS - 1)
     recent = []
     for record in records:
-        completed_at = record.get("completed_at")
-        if not completed_at:
-            continue
-        try:
-            study_date = datetime.fromisoformat(completed_at).date()
-        except ValueError:
+        study_date = jst_date_from_iso(record.get("completed_at"))
+        if study_date is None:
             continue
         if window_start <= study_date <= today:
             recent.append(record)
@@ -44,7 +40,9 @@ def handler(event: dict, context) -> dict:
 
     records = list_records_by_student(student_id, limit=50)
     recent = _recent_records(records, today)
-    studied_days = {datetime.fromisoformat(r["completed_at"]).date() for r in recent}
+    studied_days = {
+        d for r in recent if (d := jst_date_from_iso(r["completed_at"])) is not None
+    }
 
     messages = list_messages_by_student(student_id, limit=20)
 

@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { toProgressSeries } from '../api/mappers/progressMapper';
 import { getClassProgress, getStudentProgress } from '../api/teacherApi';
 import type { ApiCurriculumItem, ApiStudentProgressItem } from '../types/api';
@@ -11,7 +12,9 @@ export interface StudentProgressData {
 }
 
 export function useStudentProgress(studentId: string, classId: string) {
-  return useFetch<StudentProgressData>(async () => {
+  const [version, setVersion] = useState(0);
+
+  const state = useFetch<StudentProgressData>(async () => {
     const [curriculumItems, studentProgressItems] = await Promise.all([
       getClassProgress(classId),
       getStudentProgress(studentId),
@@ -21,5 +24,11 @@ export function useStudentProgress(studentId: string, classId: string) {
       curriculumItems,
       studentProgressItems,
     };
-  }, [studentId, classId]);
+  }, [studentId, classId, version]);
+
+  const refetch = useCallback(() => {
+    setVersion((v) => v + 1);
+  }, []);
+
+  return { ...state, refetch };
 }
