@@ -1,5 +1,5 @@
 import { useLocation, useParams } from 'react-router-dom';
-import { putClassProgress, requestAiPlanAdjustment } from '../../../api/teacherApi';
+import { putClassProgress, putStudentProgress, requestAiPlanAdjustment } from '../../../api/teacherApi';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { useCurrentTeacherClassId } from '../../../hooks/useCurrentTeacherClassId';
@@ -7,6 +7,7 @@ import { useStudentProgress } from '../../../hooks/useStudentProgress';
 import { AiParameterSliders } from '../components/AiParameterSliders';
 import { ProgressChart } from '../components/ProgressChart';
 import { SchoolProgressForm } from '../components/SchoolProgressForm';
+import { StudentProgressForm } from '../components/StudentProgressForm';
 
 interface LocationState {
   name?: string;
@@ -38,7 +39,7 @@ export function StudentProgressPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-700">AI提案パラメータ調整</h2>
           <AiParameterSliders
@@ -50,6 +51,13 @@ export function StudentProgressPage() {
           <h2 className="mb-3 text-sm font-semibold text-gray-700">学校進度登録</h2>
           <SchoolProgressForm
             onSubmit={(input) => putClassProgress(classId, input).then(() => undefined)}
+          />
+        </section>
+
+        <section className="rounded-lg border border-gray-200 bg-white p-4">
+          <h2 className="mb-3 text-sm font-semibold text-gray-700">生徒の現在地登録</h2>
+          <StudentProgressForm
+            onSubmit={(input) => putStudentProgress(studentId, input).then(() => undefined)}
           />
         </section>
       </div>
