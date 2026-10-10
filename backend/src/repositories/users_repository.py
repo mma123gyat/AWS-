@@ -47,20 +47,25 @@ def create_user(
     linked_student_id: str | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(UTC).isoformat()
+
     item = {
         "user_id": user_id,
         "cognito_sub": cognito_sub,
         "name": name,
         "email": email,
         "role": role,
-        "class_id": class_id,
-        "linked_student_id": linked_student_id,
         "created_at": now,
         "updated_at": now,
     }
+
+    if class_id is not None:
+        item["class_id"] = class_id
+
+    if linked_student_id is not None:
+        item["linked_student_id"] = linked_student_id
+
     _table().put_item(Item=item)
     return item
-
 
 def update_user_fields(user_id: str, **fields: Any) -> dict[str, Any]:
     """既存ユーザー行の一部フィールドのみを更新する。user_idは変更しない
