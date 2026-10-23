@@ -21,8 +21,8 @@ export function StudentTable({ students }: { students: Student[] }) {
       <thead>
         <tr className="border-b border-gray-200 text-left text-gray-500">
           <th className="px-4 py-2 font-medium">氏名</th>
-          <th className="px-4 py-2 font-medium">学習進度</th>
-          <th className="px-4 py-2 font-medium">最終ログイン</th>
+          <th className="px-4 py-2 font-medium">直近の理解度</th>
+          <th className="px-4 py-2 font-medium">最終学習日</th>
           <th className="px-4 py-2 font-medium">状況</th>
         </tr>
       </thead>
