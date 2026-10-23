@@ -29,7 +29,7 @@ export function TeacherLayout({ onLogout }: { onLogout: () => void }) {
       <div className="flex-1">
         <header className="flex items-center justify-end border-b border-gray-200 bg-white px-6 py-4">
           <button
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="logout-button"
             disabled={busy}
             onClick={handleLogout}
           >

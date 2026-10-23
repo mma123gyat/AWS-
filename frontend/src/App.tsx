@@ -131,7 +131,7 @@ function StudentLayout({ email, onLogout }: { email: string; onLogout: () => voi
         <Outlet />
 
         <button
-          className="secondary"
+          className="logout-button"
           disabled={busy}
           onClick={handleLogout}
         >
@@ -181,7 +181,7 @@ function RoleUnknownNotice({ onLogout }: { onLogout: () => void }) {
         <p className="muted">
           このアカウントには必要な権限が設定されていません。管理者にお問い合わせください。
         </p>
-        <button className="secondary" disabled={busy} onClick={handleLogout}>
+        <button className="logout-button" disabled={busy} onClick={handleLogout}>
           {busy ? 'ログアウト中…' : 'ログアウト'}
         </button>
         {error && <p className="error" role="alert">{error}</p>}
