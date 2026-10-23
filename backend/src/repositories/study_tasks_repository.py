@@ -20,7 +20,10 @@ def make_task_id(plan_id: str, task_order: int) -> str:
 
 def parse_task_id(task_id: str) -> tuple[str, int]:
     plan_id, _, order = task_id.rpartition("#")
-    return plan_id, int(order)
+    task_order = int(order)
+    if not plan_id or task_order <= 0:
+        raise ValueError("Invalid task ID")
+    return plan_id, task_order
 
 
 def list_tasks_by_plan(plan_id: str) -> list[dict[str, Any]]:
@@ -33,7 +36,9 @@ def list_tasks_by_plan(plan_id: str) -> list[dict[str, Any]]:
 
 
 def get_task(plan_id: str, task_order: int) -> dict[str, Any] | None:
-    response = _table().get_item(Key={"plan_id": plan_id, "task_order": task_order})
+    response = _table().get_item(
+        Key={"plan_id": plan_id, "task_order": task_order}, ConsistentRead=True
+    )
     return response.get("Item")
 
 
