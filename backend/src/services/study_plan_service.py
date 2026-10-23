@@ -62,7 +62,7 @@ def generate_plan(params: dict[str, Any], request_id: str) -> dict:
 
 def generate_plan_for_student(student_id: str, available_minutes: int, request_id: str) -> dict:
     """Orchestrates the full student study-plan flow with a per-day lock so:
-    a completed plan is reused rather than regenerated, concurrent requests
+    a completed plan for the selected time is reused, concurrent requests
     never produce duplicate plans, and a failed/timed-out attempt can be
     retried by a later request.
 
@@ -73,21 +73,37 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
     today = today_jst()
 
     existing = get_completed_plan(student_id, today)
-    if existing:
+    if existing and existing.get("available_minutes") == available_minutes:
         return {**existing, "tasks": list_tasks_by_plan(existing["plan_id"])}
 
-    lock = try_acquire_lock(student_id, today, owner_id=request_id, stale_after_seconds=STALE_LOCK_SECONDS)
+    lock = try_acquire_lock(
+        student_id, today, owner_id=request_id, stale_after_seconds=STALE_LOCK_SECONDS,
+        available_minutes=available_minutes,
+    )
     if lock is None:
         # Someone else is generating (or just finished) — re-check instead of
         # failing outright, so a race that completed in between is served.
         refreshed = get_completed_plan(student_id, today)
-        if refreshed:
+        if refreshed and refreshed.get("available_minutes") == available_minutes:
             return {**refreshed, "tasks": list_tasks_by_plan(refreshed["plan_id"])}
         raise ConflictError("学習プランを生成中です。しばらく待ってから再試行してください。")
 
     plan_id = lock["plan_id"]
 
     try:
+        cached = lock.get("plan_versions", {}).get(str(available_minutes))
+        if cached:
+            # Tasks are kept in their original rows: never overwrite a saved
+            # completion with the NOT_STARTED state from a newly built task.
+            restored = complete_plan_with_tasks(
+                student_id=student_id, plan_date=today, owner_id=request_id, plan_id=plan_id,
+                available_minutes=available_minutes, subject_id=cached["subject_id"],
+                title=cached["title"], reason=cached["reason"], generator=cached["generator"],
+                model_id=cached["model_id"], prompt_version=cached["prompt_version"],
+                tasks=[], created_at=lock["created_at"], check_condition=True,
+            )
+            return {**restored, "tasks": list_tasks_by_plan(plan_id)}
+
         progresses = list_progresses_by_student(student_id)
         if not progresses:
             raise ValidationError("まだ学習の現在地が設定されていません。先生に設定してもらってください。")
@@ -144,6 +160,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
             prompt_version=plan["prompt_version"],
             tasks=task_items,
             created_at=lock["created_at"],
+            check_condition=True,
         )
     except PlanLockLostError:
         # Our lock was already superseded (timeout takeover) before we could
@@ -151,7 +168,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
         # just no-op — re-check instead, the newer attempt may have already
         # completed it.
         refreshed = get_completed_plan(student_id, today)
-        if refreshed:
+        if refreshed and refreshed.get("available_minutes") == available_minutes:
             return {**refreshed, "tasks": list_tasks_by_plan(refreshed["plan_id"])}
         raise ConflictError("学習プランを生成中です。しばらく待ってから再試行してください。")
     except Exception as exc:

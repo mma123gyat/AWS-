@@ -248,6 +248,8 @@ export class ApiStack extends cdk.Stack {
     const postStudyRecordFn = createFunction('PostStudyRecordFn', 'src.handlers.students.post_study_record.handler');
     props.studyTasksTable.grantReadWriteData(postStudyRecordFn);
     props.studyRecordsTable.grantReadWriteData(postStudyRecordFn);
+    props.studyPlansTable.grantReadData(postStudyRecordFn);
+    props.dailyConditionsTable.grantReadData(postStudyRecordFn);
     this.api.root
       .addResource('study-records')
       .addMethod('POST', new apigateway.LambdaIntegration(postStudyRecordFn), authorizedMethodOptions);

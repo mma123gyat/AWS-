@@ -4,8 +4,9 @@ from typing import Any
 
 from botocore.exceptions import ClientError
 
-from src.repositories import study_tasks_repository
+from src.repositories import study_plans_repository, study_tasks_repository
 from src.repositories.dynamodb_client import table, table_name, to_attribute_map, transact_write_items
+from src.utils.dates import today_jst
 from src.utils.errors import ConflictError
 
 _TABLE_ENV = "STUDY_RECORDS_TABLE_NAME"
@@ -72,6 +73,15 @@ def complete_task_with_record(
     if task.get("completion_record"):
         return _replay_record(task["completion_record"], actual_minutes, understanding)
 
+    today = today_jst()
+    active_plan = study_plans_repository.get_plan(student_id, today)
+    if (
+        not active_plan or active_plan.get("plan_id") != task["plan_id"]
+        or active_plan.get("status") not in (None, "COMPLETED")
+        or not active_plan.get("available_minutes")
+    ):
+        raise ConflictError("学習プランが切り替わっています。画面を再読み込みしてください。")
+
     record = _build_record(
         student_id, task["task_id"], task["subject_id"], task["unit_name"],
         actual_minutes, understanding,
@@ -98,8 +108,21 @@ def complete_task_with_record(
             "ConditionExpression": "attribute_not_exists(student_id) AND attribute_not_exists(sort_key)",
         }
     }
+    active_plan_check = {"ConditionCheck": {
+        "TableName": study_plans_repository.table_name(),
+        "Key": to_attribute_map({"student_id": student_id, "plan_date": today}),
+        "ConditionExpression": "plan_id = :plan_id AND (#status = :completed OR attribute_not_exists(#status))",
+        "ExpressionAttributeNames": {"#status": "status"},
+        "ExpressionAttributeValues": to_attribute_map({":plan_id": task["plan_id"], ":completed": "COMPLETED"}),
+    }}
+    condition_check = {"ConditionCheck": {
+        "TableName": table_name("DAILY_CONDITIONS_TABLE_NAME", "DailyConditions"),
+        "Key": to_attribute_map({"student_id": student_id, "date": today}),
+        "ConditionExpression": "available_minutes = :minutes",
+        "ExpressionAttributeValues": to_attribute_map({":minutes": active_plan["available_minutes"]}),
+    }}
     try:
-        transact_write_items([task_update, record_put])
+        transact_write_items([task_update, record_put, active_plan_check, condition_check])
     except ClientError as exc:
         reasons = exc.response.get("CancellationReasons", [])
         if exc.response.get("Error", {}).get("Code") != "TransactionCanceledException" or not any(

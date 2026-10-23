@@ -13,7 +13,7 @@ def _table():
 
 
 def get_condition(student_id: str, date: str) -> dict[str, Any] | None:
-    response = _table().get_item(Key={"student_id": student_id, "date": date})
+    response = _table().get_item(Key={"student_id": student_id, "date": date}, ConsistentRead=True)
     return response.get("Item")
 
 

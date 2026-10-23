@@ -102,7 +102,7 @@ def _wire_full_generation_chain(monkeypatch, *, complete_plan_with_tasks=None):
 
 
 def test_reuses_existing_completed_plan_without_generating(monkeypatch):
-    existing_plan = {"plan_id": "plan-1", "status": "COMPLETED"}
+    existing_plan = {"plan_id": "plan-1", "status": "COMPLETED", "available_minutes": 15}
     monkeypatch.setattr(study_plan_service, "get_completed_plan", lambda *a, **k: existing_plan)
     monkeypatch.setattr(study_plan_service, "list_tasks_by_plan", lambda plan_id: [{"task_id": "task-1"}])
 
@@ -148,7 +148,7 @@ def test_does_not_call_generate_plan_when_lock_is_busy(monkeypatch):
 
 
 def test_returns_plan_completed_by_another_request_after_lock_conflict(monkeypatch):
-    completed_plan = {"plan_id": "plan-1", "status": "COMPLETED"}
+    completed_plan = {"plan_id": "plan-1", "status": "COMPLETED", "available_minutes": 15}
     call_count = {"n": 0}
 
     def _get_completed_plan(*a, **k):
@@ -193,7 +193,7 @@ def test_marks_plan_failed_and_reraises_original_exception_on_generation_error(m
 
 
 def test_lock_lost_during_persistence_returns_concurrently_completed_plan(monkeypatch):
-    completed_plan = {"plan_id": "plan-1", "status": "COMPLETED"}
+    completed_plan = {"plan_id": "plan-1", "status": "COMPLETED", "available_minutes": 15}
     call_count = {"n": 0}
 
     def _get_completed_plan(*a, **k):
@@ -284,7 +284,7 @@ def test_successful_generation_persists_plan_and_tasks_via_single_transaction(mo
 
     def _complete_plan_with_tasks(**kwargs):
         captured.update(kwargs)
-        return {"plan_id": "plan-1", "status": "COMPLETED"}
+        return {"plan_id": "plan-1", "status": "COMPLETED", "available_minutes": 15}
 
     _wire_full_generation_chain(monkeypatch, complete_plan_with_tasks=_complete_plan_with_tasks)
 
