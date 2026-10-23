@@ -12,6 +12,7 @@ from src.handlers.students import post_study_record
 from src.handlers.teacher.get_students import _summarize_student
 from src.repositories import dynamodb_client, study_records_repository, study_tasks_repository
 from src.utils.auth_context import AuthenticatedUser
+from src.utils.dates import today_jst
 
 STUDENT = AuthenticatedUser("student-1", "sub-1", "テスト生徒", "student@example.invalid", "STUDENT", "class-1", None)
 TASK_ID = "plan-1#1"
@@ -39,6 +40,7 @@ def tables():
             ("StudyRecords", "student_id", "sort_key", "S"),
             ("Messages", "student_id", "sort_key", "S"),
             ("StudyPlans", "student_id", "plan_date", "S"),
+            ("DailyConditions", "student_id", "date", "S"),
         ]:
             resource.create_table(
                 TableName=name,
@@ -50,6 +52,13 @@ def tables():
             "plan-1", STUDENT.user_id, "math", "比例", 1, "比例の復習", "問題に取り組む", 5, "NOT_STARTED",
         )
         resource.Table("StudyTasks").put_item(Item=task)
+        resource.Table("StudyPlans").put_item(Item={
+            "student_id": STUDENT.user_id, "plan_date": today_jst(),
+            "plan_id": "plan-1", "status": "COMPLETED", "available_minutes": 15,
+        })
+        resource.Table("DailyConditions").put_item(Item={
+            "student_id": STUDENT.user_id, "date": today_jst(), "available_minutes": 15,
+        })
         yield resource
         dynamodb_client.get_resource.cache_clear()
         dynamodb_client.get_client.cache_clear()

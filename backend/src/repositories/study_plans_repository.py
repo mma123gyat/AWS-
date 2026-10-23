@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 
 from src.repositories import study_tasks_repository
 from src.repositories.dynamodb_client import table, table_name as _resolve_table_name, to_attribute_map, transact_write_items
+from src.utils.errors import ConflictError
 
 _TABLE_ENV = "STUDY_PLANS_TABLE_NAME"
 _TABLE_DEFAULT = "StudyPlans"
@@ -102,15 +103,18 @@ def get_completed_plan(student_id: str, plan_date: str) -> dict[str, Any] | None
 
 
 def try_acquire_lock(
-    student_id: str, plan_date: str, owner_id: str, stale_after_seconds: int
+    student_id: str, plan_date: str, owner_id: str, stale_after_seconds: int,
+    available_minutes: int | None = None,
 ) -> dict[str, Any] | None:
     """Attempts to become the exclusive generator for this student/day.
 
     Succeeds only if: no plan exists yet, the existing plan FAILED, or the
     existing plan is GENERATING but its lease (`updated_at`) is older than
     `stale_after_seconds` (the previous attempt likely crashed or timed out).
-    A COMPLETED plan — or a legacy plan with no `status` attribute at all —
-    never matches, so it is never overwritten.
+    With available_minutes, a different completed plan can be archived and
+    switched under the same lock. Cache at most one plan per time choice;
+    returning to a choice restores its original task IDs and completion state.
+    The default retains the original no-replacement behavior.
     """
     now = datetime.now(UTC)
     now_iso = now.isoformat()
@@ -127,21 +131,59 @@ def try_acquire_lock(
         "updated_at": now_iso,
     }
 
+    names = {"#status": "status", "#updated_at": "updated_at"}
+    values: dict[str, Any] = {
+        ":failed": "FAILED", ":generating": "GENERATING", ":stale_threshold": stale_threshold,
+    }
+    condition = (
+        "attribute_not_exists(student_id) OR #status = :failed"
+        " OR (#status = :generating AND #updated_at < :stale_threshold)"
+    )
+    if available_minutes is not None:
+        current = get_plan(student_id, plan_date)
+        item["available_minutes"] = available_minutes
+        names = {}
+        values = {}
+        if current is None:
+            condition = "attribute_not_exists(student_id)"
+        else:
+            status = current.get("status")
+            if status == "GENERATING" and current.get("updated_at", now_iso) >= stale_threshold:
+                return None
+            if status in (None, "COMPLETED") and current.get("available_minutes") == available_minutes:
+                if status == "COMPLETED" or _is_well_formed_legacy_plan(current):
+                    return None
+
+            versions = dict(current.get("plan_versions", {}))
+            if status == "COMPLETED" or (status is None and _is_well_formed_legacy_plan(current)):
+                snapshot = {key: value for key, value in current.items() if key != "plan_versions"}
+                versions[str(int(current["available_minutes"]))] = snapshot
+            if versions:
+                item["plan_versions"] = versions
+            cached = versions.get(str(available_minutes))
+            if cached:
+                item["plan_id"] = cached["plan_id"]
+                item["created_at"] = cached.get("created_at", now_iso)
+
+            # Compare the snapshot used to preserve the cache. A racing lock,
+            # completion or restore must never be overwritten by a stale reader.
+            clauses = []
+            for field in ("plan_id", "updated_at", "status"):
+                names[f"#{field}"] = field
+                if field in current:
+                    values[f":old_{field}"] = current[field]
+                    clauses.append(f"#{field} = :old_{field}")
+                else:
+                    clauses.append(f"attribute_not_exists(#{field})")
+            condition = " AND ".join(clauses)
+
     try:
-        _table().put_item(
-            Item=item,
-            ConditionExpression=(
-                "attribute_not_exists(student_id)"
-                " OR #status = :failed"
-                " OR (#status = :generating AND #updated_at < :stale_threshold)"
-            ),
-            ExpressionAttributeNames={"#status": "status", "#updated_at": "updated_at"},
-            ExpressionAttributeValues={
-                ":failed": "FAILED",
-                ":generating": "GENERATING",
-                ":stale_threshold": stale_threshold,
-            },
-        )
+        kwargs: dict[str, Any] = {"Item": item, "ConditionExpression": condition}
+        if names:
+            kwargs["ExpressionAttributeNames"] = names
+        if values:
+            kwargs["ExpressionAttributeValues"] = values
+        _table().put_item(**kwargs)
     except ClientError as exc:
         if exc.response.get("Error", {}).get("Code") == "ConditionalCheckFailedException":
             return None
@@ -164,6 +206,7 @@ def complete_plan_with_tasks(
     prompt_version: str,
     tasks: list[dict[str, Any]],
     created_at: str,
+    check_condition: bool = False,
 ) -> dict[str, Any]:
     """Atomically marks the plan COMPLETED and writes every task row in a
     single TransactWriteItems call: either the whole plan is persisted, or
@@ -205,13 +248,14 @@ def complete_plan_with_tasks(
                 " generator = :generator, model_id = :model_id, prompt_version = :prompt_version,"
                 " updated_at = :updated_at"
             ),
-            "ConditionExpression": "#status = :generating AND owner_id = :owner_id",
+            "ConditionExpression": "#status = :generating AND owner_id = :owner_id AND plan_id = :plan_id",
             "ExpressionAttributeNames": {"#status": "status"},
             "ExpressionAttributeValues": to_attribute_map(
                 {
                     ":completed": "COMPLETED",
                     ":generating": "GENERATING",
                     ":owner_id": owner_id,
+                    ":plan_id": plan_id,
                     ":available_minutes": available_minutes,
                     ":subject_id": subject_id,
                     ":title": title,
@@ -235,8 +279,17 @@ def complete_plan_with_tasks(
         for task in tasks
     ]
 
+    condition_checks = []
+    if check_condition:
+        condition_checks.append({"ConditionCheck": {
+            "TableName": _resolve_table_name("DAILY_CONDITIONS_TABLE_NAME", "DailyConditions"),
+            "Key": to_attribute_map({"student_id": student_id, "date": plan_date}),
+            "ConditionExpression": "available_minutes = :minutes",
+            "ExpressionAttributeValues": to_attribute_map({":minutes": available_minutes}),
+        }})
+
     try:
-        transact_write_items([plan_update, *task_puts])
+        transact_write_items([plan_update, *task_puts, *condition_checks])
     except ClientError as exc:
         error_code = exc.response.get("Error", {}).get("Code")
         reasons = exc.response.get("CancellationReasons", [])
@@ -245,6 +298,8 @@ def complete_plan_with_tasks(
             raise PlanLockLostError(
                 f"plan lock for {student_id}/{plan_date} was lost (owner_id={owner_id})"
             ) from exc
+        if check_condition and reasons and reasons[-1].get("Code") == "ConditionalCheckFailed":
+            raise ConflictError("学習時間が変更されました。画面を再読み込みして、もう一度お試しください。") from exc
         raise PlanPersistenceError(f"学習プランの保存に失敗しました: {exc}") from exc
 
     return plan_item

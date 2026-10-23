@@ -27,7 +27,7 @@ def handler(event: dict, context) -> dict:
     plan_with_tasks = None
     if condition and int(condition["available_minutes"]) > 0:
         plan = get_completed_plan(user.user_id, today)
-        if plan:
+        if plan and plan.get("available_minutes") == condition["available_minutes"]:
             plan_with_tasks = {**plan, "tasks": list_tasks_by_plan(plan["plan_id"])}
 
     return success(
