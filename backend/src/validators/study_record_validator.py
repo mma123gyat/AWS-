@@ -11,7 +11,7 @@ def validate_study_record_input(payload: dict[str, Any]) -> dict[str, Any]:
 
     if not task_id or not isinstance(task_id, str):
         raise ValidationError("taskIdは必須です。")
-    if not isinstance(actual_minutes, int) or actual_minutes <= 0:
+    if type(actual_minutes) is not int or actual_minutes <= 0:
         raise ValidationError("学習時間(分)は1以上の整数で入力してください。")
 
     return {

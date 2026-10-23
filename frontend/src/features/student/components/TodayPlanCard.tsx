@@ -4,7 +4,7 @@ import { ApiError } from '../../../api/client'
 import { generateTodayStudyPlan } from '../../../api/studentApi'
 import type { DailyCondition } from '../../../api'
 import type { StudyPlanWithTasks } from '../../../types/student'
-import { StatusPill } from './StatusPill'
+import { StudyTaskCard } from './StudyTaskCard'
 
 export function TodayPlanCard({
   todayCondition,
@@ -81,14 +81,7 @@ export function TodayPlanCard({
       <p className="mt-2 text-sm text-gray-500">{todayPlan.reason}</p>
       <ul className="mt-4 space-y-3">
         {sortedTasks.map((task) => (
-          <li key={task.task_id} className="rounded-md border border-gray-100 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-gray-900">{task.title}</p>
-              <StatusPill status={task.status} />
-            </div>
-            <p className="mt-1 text-sm text-gray-500">{task.description}</p>
-            <p className="mt-1 text-xs text-gray-400">{task.planned_minutes}分</p>
-          </li>
+          <StudyTaskCard key={task.task_id} task={task} />
         ))}
       </ul>
     </div>

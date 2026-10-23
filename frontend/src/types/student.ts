@@ -10,6 +10,26 @@ export type StudyTaskStatus = CurriculumStatus
 
 export type StudyPlanStatus = 'COMPLETED' | 'GENERATING' | 'FAILED'
 
+export type Understanding = 1 | 2 | 3 | 4 | 5
+
+export interface StudyRecord {
+  record_id: string
+  student_id: string
+  sort_key: string
+  task_id: string
+  subject_id: string
+  unit_name: string
+  actual_minutes: number
+  understanding: Understanding
+  completed_at: string
+}
+
+export interface SaveStudyRecordInput {
+  taskId: string
+  actualMinutes: number
+  understanding: Understanding
+}
+
 export interface StudyTask {
   task_id: string
   plan_id: string
@@ -21,6 +41,7 @@ export interface StudyTask {
   description: string
   planned_minutes: number
   status: StudyTaskStatus
+  completion_record?: StudyRecord
 }
 
 export interface StudyPlanWithTasks {

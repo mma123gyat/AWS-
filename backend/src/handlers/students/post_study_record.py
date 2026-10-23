@@ -1,6 +1,6 @@
 import json
 
-from src.repositories.study_records_repository import put_record
+from src.repositories.study_records_repository import complete_task_with_record
 from src.repositories.study_tasks_repository import get_task, parse_task_id
 from src.utils.auth_context import get_authenticated_user, require_role
 from src.utils.errors import ForbiddenError, NotFoundError, ValidationError
@@ -18,6 +18,8 @@ def handler(event: dict, context) -> dict:
         payload = json.loads(event.get("body") or "{}")
     except json.JSONDecodeError:
         raise ValidationError("リクエストの形式が不正です。")
+    if not isinstance(payload, dict):
+        raise ValidationError("リクエストはオブジェクト形式で入力してください。")
 
     validated = validate_study_record_input(payload)
     task_id = validated["task_id"]
@@ -33,11 +35,9 @@ def handler(event: dict, context) -> dict:
     if task.get("student_id") != user.user_id:
         raise ForbiddenError("このタスクを操作する権限がありません。")
 
-    record = put_record(
+    record = complete_task_with_record(
         student_id=user.user_id,
-        task_id=task_id,
-        subject_id=task["subject_id"],
-        unit_name=task["unit_name"],
+        task=task,
         actual_minutes=validated["actual_minutes"],
         understanding=validated["understanding"],
     )
