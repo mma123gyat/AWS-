@@ -52,55 +52,64 @@ export function StudyTaskCard({ task }: { task: StudyTask }) {
   }
 
   return (
-    <li className="rounded-md border border-gray-100 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-medium text-gray-900">{task.title}</p>
+    <li className="study-task">
+      <div className="study-task-heading">
+        <h3>{task.title}</h3>
         <StatusPill status={record ? 'COMPLETED' : task.status} />
       </div>
-      <p className="mt-1 text-sm text-gray-500">{task.description}</p>
-      <p className="mt-1 text-xs text-gray-400">予定：{task.planned_minutes}分</p>
-
-      {record ? (
-        <p className="mt-3 text-sm text-green-700" role="status">
-          {record.actual_minutes}分・理解度{record.understanding}/5で記録しました。
-        </p>
-      ) : (
-        <form onSubmit={handleSubmit} aria-label={`${task.title}の学習記録`}>
-          <p className="text-sm text-gray-600">
-            {task.status === 'COMPLETED'
-              ? '完了した学習の記録を登録してください。'
-              : '取り組み終わったら、学習時間と理解度を記録しましょう。'}
+      <div className="study-task-body">
+        <div>
+          <p className="study-task-description">{task.description}</p>
+          <p className="study-task-minutes">予定：{task.planned_minutes}分</p>
+        </div>
+        {record ? (
+          <p className="success study-task-completed" role="status">
+            {record.actual_minutes}分・理解度{record.understanding}/5で記録しました。
           </p>
-          <label htmlFor={`${formId}-minutes`}>実際に学習した時間（分）</label>
-          <input
-            id={`${formId}-minutes`}
-            type="number"
-            min={1}
-            step={1}
-            inputMode="numeric"
-            value={actualMinutes}
-            onChange={(event) => setActualMinutes(event.target.value)}
-            disabled={busy}
-            required
-          />
-          <label htmlFor={`${formId}-understanding`}>理解度</label>
-          <select
-            id={`${formId}-understanding`}
-            value={understanding}
-            onChange={(event) => setUnderstanding(Number(event.target.value) as Understanding)}
-            disabled={busy}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-          >
-            {UNDERSTANDING_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <button type="submit" disabled={busy}>
-            {busy ? '保存中…' : task.status === 'COMPLETED' ? '学習記録を保存する' : '記録して完了する'}
-          </button>
-          {error && <p className="error" role="alert">{error}</p>}
-        </form>
-      )}
+        ) : (
+          <form className="study-task-form" onSubmit={handleSubmit} aria-label={`${task.title}の学習記録`}>
+            <p className="text-sm text-gray-600">
+              {task.status === 'COMPLETED'
+                ? '完了した学習の記録を登録してください。'
+                : '取り組み終わったら、学習時間と理解度を記録しましょう。'}
+            </p>
+            <div className="study-task-fields">
+              <div>
+                <label htmlFor={`${formId}-minutes`}>実際に学習した時間（分）</label>
+                <input
+                  id={`${formId}-minutes`}
+                  type="number"
+                  min={1}
+                  step={1}
+                  inputMode="numeric"
+                  value={actualMinutes}
+                  onChange={(event) => setActualMinutes(event.target.value)}
+                  disabled={busy}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor={`${formId}-understanding`}>理解度</label>
+                <select
+                  id={`${formId}-understanding`}
+                  value={understanding}
+                  onChange={(event) => setUnderstanding(Number(event.target.value) as Understanding)}
+                  disabled={busy}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  {UNDERSTANDING_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <button className="primary-button" type="submit" disabled={busy}>
+              {busy ? '保存中…' : task.status === 'COMPLETED' ? '学習記録を保存する' : '記録して完了する'}
+            </button>
+            {error && <p className="error" role="alert">{error}</p>}
+          </form>
+        )}
+      </div>
     </li>
   )
 }

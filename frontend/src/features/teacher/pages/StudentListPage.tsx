@@ -13,9 +13,12 @@ export function StudentListPage() {
       {state.status === 'loading' && <LoadingState />}
       {state.status === 'error' && <ErrorState message={state.message} />}
       {state.status === 'success' && (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <>
+        <p className="text-xs text-gray-500 sm:hidden">表は横にスクロールできます。</p>
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white" role="region" aria-label="生徒一覧" tabIndex={0}>
           <StudentTable students={state.data} />
         </div>
+        </>
       )}
     </div>
   );

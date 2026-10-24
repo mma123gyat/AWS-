@@ -2,8 +2,9 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
+import { PortalFrame } from './components/layout/PortalFrame'
 import StudyTimeForm from './StudyTimeForm'
-import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { TeacherLayout } from './features/teacher/TeacherLayout'
 import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
@@ -93,7 +94,7 @@ function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
             required
           />
 
-          <button type="submit" disabled={busy}>
+          <button className="primary-button" type="submit" disabled={busy}>
             {busy ? 'ログイン中…' : 'ログイン'}
           </button>
         </form>
@@ -125,34 +126,26 @@ function StudentLayout({ email, onLogout }: { email: string; onLogout: () => voi
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-card">
-        <p className="eyebrow">学習サポート</p>
-        {email && <p>{email}</p>}
-
-        <nav className="sharing-nav" aria-label="生徒メニュー"><Link to="/dashboard">ダッシュボード</Link><Link to="/sharing">共有設定</Link></nav>
-        <Outlet />
-
-        <button
-          className="logout-button"
-          disabled={busy}
-          onClick={handleLogout}
-        >
-          {busy ? 'ログアウト中…' : 'ログアウト'}
-        </button>
-
-        {error && <p className="error" role="alert">{error}</p>}
-      </section>
-    </main>
+    <PortalFrame
+      label="生徒ポータル" email={email} busy={busy} error={error} onLogout={handleLogout}
+      links={[
+        { to: '/dashboard', label: 'ダッシュボード' },
+        { to: '/condition', label: '学習時間' },
+        { to: '/sharing', label: '共有設定' },
+      ]}
+    >
+      <Outlet />
+    </PortalFrame>
   )
 }
 
 function ConditionPage() {
   return (
-    <>
+    <section className="condition-panel surface-card">
+      <p className="eyebrow">今日のペースを決めよう</p>
       <h1>今日の学習時間</h1>
       <StudyTimeForm />
-    </>
+    </section>
   )
 }
 

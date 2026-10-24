@@ -19,7 +19,9 @@ export function SubjectProgressTable({
   const reasonsBySubject = new Map(supportNeeded.map((s) => [s.subjectId, s.reasons]));
 
   return (
-    <div className="support-report-table-container overflow-x-auto rounded-lg border border-gray-200 bg-white">
+    <>
+    <p className="text-xs text-gray-500 sm:hidden print:hidden">表は横にスクロールできます。</p>
+    <div role="region" aria-label="教科別の状況" tabIndex={0} className="support-report-table-container overflow-x-auto rounded-lg border border-gray-200 bg-white">
       <table className="support-report-table w-full min-w-[540px] text-sm">
         <thead className="bg-gray-50 text-left text-xs text-gray-500">
           <tr>
@@ -43,5 +45,6 @@ export function SubjectProgressTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }

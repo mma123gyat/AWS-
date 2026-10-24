@@ -1,9 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --page: #f5f7fb;
+  --ink: #243247;
+  --muted: #607087;
+  --accent: #315fd4;
+  --line: #dfe7f1;
+  --line-strong: #b8c5d7;
+  font-family: "Noto Sans JP", "Yu Gothic UI", Meiryo, system-ui, -apple-system, "Segoe UI", sans-serif;
   color: #243247;
-  background: #f3f6fa;
+  background: var(--page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
