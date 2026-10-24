@@ -4,7 +4,9 @@ import type {
   ApiCurriculumItem,
   ApiStudentProgressItem,
   ApiStudentSummary,
+  ApiTeacherLearningLogs,
 } from '../../../types/api';
+import type { StudyRecord } from '../../../types/studyRecord';
 
 export const mockStudents: ApiStudentSummary[] = [
   {
@@ -29,6 +31,34 @@ export const mockStudents: ApiStudentSummary[] = [
     todayPlanExists: false,
   },
 ];
+
+function mockRecord(studentId: string, order: number, minutes: number, understanding: StudyRecord['understanding']): StudyRecord {
+  const completedAt = new Date(Date.now() - order * 60_000).toISOString();
+  const taskId = `demo-plan-${studentId}#${order}`;
+  return {
+    record_id: `demo-record-${studentId}-${order}`,
+    student_id: studentId,
+    sort_key: `${completedAt}#${taskId}`,
+    task_id: taskId,
+    subject_id: studentId === 'student-001' ? 'math' : 'japanese',
+    unit_name: studentId === 'student-001' ? '比例・反比例' : '走れメロス',
+    actual_minutes: minutes,
+    understanding,
+    completed_at: completedAt,
+  };
+}
+
+export const mockTeacherLearningLogs: Record<string, ApiTeacherLearningLogs> = {
+  'student-001': {
+    studentId: 'student-001', name: '山田 太郎',
+    recentRecords: [mockRecord('student-001', 1, 7, 3), mockRecord('student-001', 2, 8, 4)],
+  },
+  'student-002': {
+    studentId: 'student-002', name: '佐藤 花子',
+    recentRecords: [mockRecord('student-002', 1, 5, 2)],
+  },
+  'student-003': { studentId: 'student-003', name: '鈴木 一郎', recentRecords: [] },
+};
 
 export const mockStudentProgress: Record<string, ApiStudentProgressItem[]> = {
   'student-001': [

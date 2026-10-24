@@ -1,0 +1,18 @@
+.teacher-learning-logs .learning-logs-button {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #43536b;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.teacher-learning-logs .learning-logs-button:hover:not(:disabled) {
+  background: #f1f5f9;
+}

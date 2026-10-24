@@ -8,6 +8,7 @@ import { TeacherLayout } from './features/teacher/TeacherLayout'
 import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
 import { TeacherDashboardPage } from './features/teacher/pages/TeacherDashboardPage'
+import { TeacherLearningLogsPage } from './features/teacher/pages/TeacherLearningLogsPage'
 import { ParentLayout } from './features/parent/ParentLayout'
 import { ParentDashboardPage } from './features/parent/pages/ParentDashboardPage'
 import { SupportLayout } from './features/support/SupportLayout'
@@ -291,7 +292,7 @@ function App() {
             <Route path="dashboard" element={<TeacherDashboardPage />} />
             <Route path="students" element={<StudentListPage />} />
             <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
-            <Route path="logs" element={<PlaceholderPage title="学習ログ" />} />
+            <Route path="logs" element={<TeacherLearningLogsPage />} />
             <Route path="alerts" element={<PlaceholderPage title="アラート" />} />
           </Route>
         </Route>
