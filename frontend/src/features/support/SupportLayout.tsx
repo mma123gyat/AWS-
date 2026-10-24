@@ -28,20 +28,14 @@ export function SupportLayout({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <nav className="flex h-full w-48 shrink-0 flex-col gap-1 border-r border-gray-200 bg-white p-4 print:hidden">
-        <p className="mb-2 px-3 text-xs font-semibold tracking-wide text-gray-400">医療・連携用レポート</p>
+    <div className="workspace-shell">
+      <nav className="workspace-sidebar print:hidden" aria-label="支援者メニュー">
+        <p className="workspace-sidebar-title">医療・連携用レポート</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              `rounded-md px-3 py-2 text-sm font-medium ${
-                isActive
-                  ? 'border-l-2 border-indigo-600 bg-indigo-50 text-indigo-700'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`
-            }
+            className={({ isActive }) => `workspace-nav-link${isActive ? ' is-active' : ''}`}
           >
             {item.label}
           </NavLink>
@@ -59,7 +53,7 @@ export function SupportLayout({ onLogout }: { onLogout: () => void }) {
           </p>
         )}
       </nav>
-      <main className="min-w-0 flex-1 p-6">
+      <main className="workspace-main workspace-content">
         <Outlet />
       </main>
     </div>

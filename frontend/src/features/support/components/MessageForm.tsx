@@ -31,6 +31,7 @@ export function MessageForm() {
     <form onSubmit={handleSubmit} className="rounded-lg border border-gray-200 bg-white p-6 print:hidden">
       <h2 className="text-sm font-medium text-gray-700">保護者へのメッセージ</h2>
       <textarea
+        aria-label="保護者へのメッセージ"
         className="mt-3 w-full rounded-md border border-gray-300 p-3 text-sm"
         rows={3}
         value={body}

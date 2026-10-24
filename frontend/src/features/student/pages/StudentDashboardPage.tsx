@@ -7,27 +7,31 @@ import { TodayPlanCard } from '../components/TodayPlanCard'
 export function StudentDashboardPage() {
   const state = useStudentDashboard()
 
-  if (state.status === 'loading') {
-    return <LoadingState />
-  }
-
-  if (state.status === 'error') {
-    return <ErrorState message={state.message} />
-  }
-
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-gray-900">ダッシュボード</h1>
-      <p className="text-sm text-gray-500">今日も、自分のペースで進めましょう。</p>
-      <CurrentPositionCard
-        schoolCurrentPosition={state.data.schoolCurrentPosition}
-        myCurrentPosition={state.data.myCurrentPosition}
-      />
-      <TodayPlanCard
-        todayCondition={state.data.todayCondition}
-        todayPlan={state.data.todayPlan}
-        onPlanGenerated={state.refetch}
-      />
+    <div className="student-dashboard">
+      <header className="page-heading">
+        <div>
+          <p className="eyebrow">自分のペースで、一歩ずつ</p>
+          <h1>ダッシュボード</h1>
+          <p className="page-description">今日も、取り組めそうなことから始めましょう。</p>
+        </div>
+      </header>
+      {state.status === 'loading' && <LoadingState />}
+      {state.status === 'error' && <ErrorState message={state.message} />}
+      {state.status === 'success' && <>
+        <TodayPlanCard
+          todayCondition={state.data.todayCondition}
+          todayPlan={state.data.todayPlan}
+          onPlanGenerated={state.refetch}
+        />
+        <section aria-labelledby="current-position-title">
+          <h2 id="current-position-title" className="section-heading">学校とわたしの現在地</h2>
+          <CurrentPositionCard
+            schoolCurrentPosition={state.data.schoolCurrentPosition}
+            myCurrentPosition={state.data.myCurrentPosition}
+          />
+        </section>
+      </>}
     </div>
   )
 }

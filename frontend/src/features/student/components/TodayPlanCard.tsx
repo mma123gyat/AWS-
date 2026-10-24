@@ -39,60 +39,57 @@ export function TodayPlanCard({
 
   if (todayCondition === null) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <p className="text-sm text-gray-500">今日できる時間をまだ選んでいません。</p>
-        <Link to="/condition" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          学習時間を選ぶ
-        </Link>
-      </div>
+      <section className="today-plan surface-card" aria-label="今日の学習プラン">
+        <p className="eyebrow">今日の学習</p>
+        <h2 className="today-plan-title">今日は、どのくらい取り組めそう？</h2>
+        <p className="today-plan-reason">今日できる時間をまだ選んでいません。短い時間でも、自分のペースで大丈夫です。</p>
+        <Link to="/condition" className="button-link primary-button today-plan-action">学習時間を選ぶ</Link>
+      </section>
     )
   }
 
   if (todayCondition.available_minutes === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <p className="text-sm text-gray-500">今日は休む日に設定されています。</p>
-        <p className="mt-2 text-sm text-gray-500">これまで保存した学習記録は残ります。</p>
-        <Link to="/condition" className="mt-4 inline-block text-sm text-blue-600 hover:underline">
-          学習時間を変更する
-        </Link>
-      </div>
+      <section className="today-plan surface-card" aria-label="今日の学習プラン">
+        <div className="today-plan-toolbar"><p className="eyebrow">今日の学習</p><span className="plan-budget">お休みの日</span></div>
+        <h2 className="today-plan-title">今日は休む日に設定されています。</h2>
+        <p className="today-plan-reason">ゆっくり休んで、また取り組める日に。これまで保存した学習記録は残ります。</p>
+        <Link to="/condition" className="text-link today-plan-action">学習時間を変更する</Link>
+      </section>
     )
   }
 
   if (todayPlan === null || todayPlan.available_minutes !== todayCondition.available_minutes) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <p className="text-sm text-gray-500">今日使える時間：{todayCondition.available_minutes}分</p>
-        <p className="mt-2 text-sm text-gray-500">選んだ時間に合う学習プランを表示しましょう。</p>
-        <p className="mt-2 text-sm text-gray-500">
-          この時間のプランが作成済みなら、完了状態を引き継いで表示します。
-          時間を変更しても、保存済みの学習記録は残ります。
-        </p>
-        <button
-          className="mt-4 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-          disabled={isGenerating}
-          onClick={handleGenerate}
-        >
+      <section className="today-plan surface-card" aria-label="今日の学習プラン">
+        <div className="today-plan-toolbar">
+          <div className="today-plan-labels"><p className="eyebrow">今日の学習</p><span className="plan-budget">{todayCondition.available_minutes}分プラン</span></div>
+          <Link to="/condition" className="text-link">学習時間を変更する</Link>
+        </div>
+        <h2 className="today-plan-title">今日の学習を準備しよう</h2>
+        <p className="today-plan-reason">選んだ時間に合う学習プランを表示しましょう。</p>
+        <p className="today-plan-reason">この時間のプランが作成済みなら、完了状態を引き継いで表示します。時間を変更しても、保存済みの学習記録は残ります。</p>
+        <button className="primary-button today-plan-action" disabled={isGenerating} onClick={handleGenerate}>
           {isGenerating ? 'プランを準備中…' : 'この時間の学習プランを表示する'}
         </button>
-        {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-      </div>
+        {error && <p className="error" role="alert">{error}</p>}
+      </section>
     )
   }
 
   const sortedTasks = [...todayPlan.tasks].sort((a, b) => a.task_order - b.task_order)
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6">
-      <p className="text-sm text-gray-500">今回のプラン：{todayPlan.available_minutes}分</p>
-      <p className="text-lg font-semibold text-gray-900">{todayPlan.title}</p>
-      <p className="mt-2 text-sm text-gray-500">{todayPlan.reason}</p>
-      <ul className="mt-4 space-y-3">
-        {sortedTasks.map((task) => (
-          <StudyTaskCard key={task.task_id} task={task} />
-        ))}
+    <section className="today-plan surface-card" aria-label="今日の学習プラン">
+      <div className="today-plan-toolbar">
+        <div className="today-plan-labels"><p className="eyebrow">今日の学習</p><span className="plan-budget">今回のプラン：{todayPlan.available_minutes}分</span></div>
+        <Link to="/condition" className="text-link">学習時間を変更する</Link>
+      </div>
+      <h2 className="today-plan-title">{todayPlan.title}</h2>
+      <p className="today-plan-reason">{todayPlan.reason}</p>
+      <ul className="study-task-list">
+        {sortedTasks.map((task) => <StudyTaskCard key={task.task_id} task={task} />)}
       </ul>
-    </div>
+    </section>
   )
 }

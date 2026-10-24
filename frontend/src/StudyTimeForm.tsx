@@ -47,7 +47,7 @@ export default function StudyTimeForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="study-time-form" onSubmit={handleSubmit}>
       <p className="muted">
         今日、取り組めそうな時間を選んでください。
         お休みの日があっても大丈夫です。
@@ -69,12 +69,13 @@ export default function StudyTimeForm() {
               setError('')
             }}
           >
-            {choice.label}
+            <span className="time-choice-label">{choice.label}</span>
+            <span className="time-choice-hint">{choice.minutes === 0 ? 'ゆっくり休もう' : choice.minutes === 5 ? '少しだけ' : choice.minutes === 15 ? '無理のないペースで' : 'じっくり取り組む'}</span>
           </button>
         ))}
       </div>
 
-      <button type="submit" disabled={busy}>
+      <button className="primary-button" type="submit" disabled={busy}>
         {busy ? '登録中…' : 'この時間で登録する'}
       </button>
 

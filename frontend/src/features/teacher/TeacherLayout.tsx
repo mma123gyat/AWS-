@@ -24,10 +24,11 @@ export function TeacherLayout({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="workspace-shell">
       <SideNav />
-      <div className="min-w-0 flex-1">
-        <header className="flex items-center justify-end border-b border-gray-200 bg-white px-6 py-4">
+      <div className="workspace-main">
+        <header className="workspace-header">
+          <p>学習サポート ／ 教員ポータル</p>
           <button
             className="logout-button"
             disabled={busy}
@@ -36,7 +37,7 @@ export function TeacherLayout({ onLogout }: { onLogout: () => void }) {
             {busy ? 'ログアウト中…' : 'ログアウト'}
           </button>
         </header>
-        <main className="p-6">
+        <main className="workspace-content">
           <Outlet />
           {error && (
             <p className="mt-4 text-sm text-red-700" role="alert">
