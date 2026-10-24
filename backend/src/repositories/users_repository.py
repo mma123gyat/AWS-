@@ -12,7 +12,8 @@ def _table():
 
 
 def get_user_by_id(user_id: str) -> dict[str, Any] | None:
-    response = _table().get_item(Key={"user_id": user_id})
+    # A plan starting after a teacher saves settings must see that save.
+    response = _table().get_item(Key={"user_id": user_id}, ConsistentRead=True)
     return response.get("Item")
 
 
@@ -82,6 +83,19 @@ def update_user_fields(user_id: str, **fields: Any) -> dict[str, Any]:
         UpdateExpression=f"SET {set_clause}, updated_at = :updated_at",
         ExpressionAttributeNames=names,
         ExpressionAttributeValues=values,
+        ReturnValues="ALL_NEW",
+    )
+    return response["Attributes"]
+
+
+def put_ai_parameters(student_id: str, class_id: str, params: dict[str, int]) -> dict[str, Any]:
+    now = datetime.now(UTC).isoformat()
+    response = _table().update_item(
+        Key={"user_id": student_id},
+        UpdateExpression="SET ai_parameters = :params, ai_parameters_updated_at = :now, updated_at = :now",
+        ConditionExpression="attribute_exists(user_id) AND #role = :student AND class_id = :class_id",
+        ExpressionAttributeNames={"#role": "role"},
+        ExpressionAttributeValues={":params": params, ":now": now, ":student": "STUDENT", ":class_id": class_id},
         ReturnValues="ALL_NEW",
     )
     return response["Attributes"]

@@ -207,6 +207,7 @@ def complete_plan_with_tasks(
     tasks: list[dict[str, Any]],
     created_at: str,
     check_condition: bool = False,
+    ai_parameters: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     """Atomically marks the plan COMPLETED and writes every task row in a
     single TransactWriteItems call: either the whole plan is persisted, or
@@ -278,6 +279,11 @@ def complete_plan_with_tasks(
         }
         for task in tasks
     ]
+
+    if ai_parameters is not None:
+        plan_item["ai_parameters"] = ai_parameters
+        plan_update["Update"]["UpdateExpression"] += ", ai_parameters = :ai_parameters"
+        plan_update["Update"]["ExpressionAttributeValues"].update(to_attribute_map({":ai_parameters": ai_parameters}))
 
     condition_checks = []
     if check_condition:

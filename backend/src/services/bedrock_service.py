@@ -7,8 +7,9 @@ from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 from src.models.study_plan_schema import StudyPlanValidationError, validate_study_plan_output
+from src.models.ai_parameters import plan_guidance
 
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2-teacher-parameters"
 
 _TOOL_NAME = "submit_study_plan"
 _TOOL_INPUT_SCHEMA = {
@@ -78,6 +79,8 @@ def _client():
 
 
 def _build_user_message(params: dict[str, Any]) -> str:
+    guidance = plan_guidance(params)
+    settings = guidance["settings"]
     return (
         f"学年: {params['grade']}\n"
         f"教科: {params['subject']}\n"
@@ -85,6 +88,11 @@ def _build_user_message(params: dict[str, Any]) -> str:
         f"本人の現在地(本人が今取り組んでいる単元): {params['student_topic']}\n"
         f"本人の理解度(1〜5): {params['understanding']}\n"
         f"今日使える時間(分): {params['available_minutes']}\n"
+        f"教員の難易度設定(1〜5): {settings['difficulty']}。{guidance['difficulty']}。\n"
+        f"教員の学習量設定(1〜5): {settings['volume']}。{guidance['practice']}。\n"
+        f"プラン全体は{guidance['target_minutes']}分以内、タスクは{guidance['task_count']}個以内にしてください。\n"
+        f"教員のサポート設定(1〜5): {settings['supportLevel']}。{guidance['support']}。\n"
+        "教員の設定によって本人の理解度や学習可能時間を書き換えないでください。\n"
         "本人の現在地を起点に、今日使える時間内で終わる学習プランを提案してください。"
     )
 
@@ -141,5 +149,9 @@ def generate_study_plan(params: dict[str, Any]) -> dict:
 
     if plan["total_minutes"] > available_minutes:
         raise BedrockGenerationError("Bedrockの提案が学習可能時間を超えていました。")
+
+    guidance = plan_guidance(params)
+    if plan["total_minutes"] > guidance["target_minutes"] or len(plan["tasks"]) > guidance["task_count"]:
+        raise BedrockGenerationError("Bedrockの提案が教員の学習量設定を超えていました。")
 
     return plan

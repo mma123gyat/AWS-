@@ -146,6 +146,21 @@ export class ApiStack extends cdk.Stack {
       authorizedMethodOptions,
     );
 
+    // Settings live on the student's Users row; no new table or data replacement.
+    const aiParameters = studentItem.addResource('ai-parameters');
+    const getAiParametersFn = createFunction(
+      'GetAiParametersFn', 'src.handlers.teacher.get_ai_parameters.handler',
+    );
+    aiParameters.addMethod('GET', new apigateway.LambdaIntegration(getAiParametersFn), authorizedMethodOptions);
+
+    const putAiParametersFn = createFunction(
+      'PutAiParametersFn', 'src.handlers.teacher.put_ai_parameters.handler',
+    );
+    putAiParametersFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:UpdateItem'], resources: [props.usersTable.tableArn],
+    }));
+    aiParameters.addMethod('PUT', new apigateway.LambdaIntegration(putAiParametersFn), authorizedMethodOptions);
+
     const studentProgress = studentItem.addResource('progress');
 
     const putStudentProgressFn = createFunction(

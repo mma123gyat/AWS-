@@ -66,6 +66,47 @@ def choose(minutes):
     return daily_conditions_repository.put_condition(STUDENT.user_id, today_jst(), minutes)
 
 
+def test_teacher_settings_apply_only_to_new_plans_preserving_cached_tasks_and_records(app, monkeypatch):
+    settings = {'difficulty': 2, 'volume': 1, 'supportLevel': 5}
+    monkeypatch.setattr(study_plan_service, 'get_user_by_id', lambda student_id: {'class_id': 'class-1', 'ai_parameters': dict(settings)})
+    original = generate(15)
+    assert original['available_minutes'] == 15
+    assert sum(task['planned_minutes'] for task in original['tasks']) == 6
+    assert original['ai_parameters'] == settings
+    saved = data(record(original['tasks'][0]))
+    old_settings = dict(settings)
+    settings.update(difficulty=5, volume=5, supportLevel=1)
+    unchanged = generate(15)
+    assert unchanged['plan_id'] == original['plan_id']
+    assert unchanged['ai_parameters'] == old_settings
+    assert unchanged['tasks'][0]['status'] == 'COMPLETED'
+    new = generate(30)
+    assert new['ai_parameters'] == settings
+    assert len(new['tasks']) == 4
+    assert sum(task['planned_minutes'] for task in new['tasks']) == 30
+    restored = generate(15)
+    assert restored['plan_id'] == original['plan_id']
+    assert restored['ai_parameters'] == old_settings
+    assert restored['tasks'][0]['completion_record']['record_id'] == saved['record_id']
+    assert len(study_records_repository.list_records_by_student(STUDENT.user_id)) == 1
+    assert app[1] == [15, 30]
+
+
+def test_settings_change_while_generating_keeps_the_started_attempt_snapshot(app, monkeypatch):
+    settings = {'difficulty': 1, 'volume': 1, 'supportLevel': 5}
+    monkeypatch.setattr(study_plan_service, 'get_user_by_id', lambda student_id: {'class_id': 'class-1', 'ai_parameters': dict(settings)})
+    original_generate = study_plan_service.generate_plan
+    def changing_settings(params, request_id):
+        settings.update(difficulty=5, volume=5, supportLevel=1)
+        return original_generate(params, request_id)
+    monkeypatch.setattr(study_plan_service, 'generate_plan', changing_settings)
+    plan = generate(15)
+    assert plan['ai_parameters'] == {'difficulty': 1, 'volume': 1, 'supportLevel': 5}
+    assert sum(task['planned_minutes'] for task in plan['tasks']) == 6
+    following = generate(30)
+    assert following['ai_parameters'] == settings
+
+
 def data(response):
     assert response['statusCode'] == 200, response
     return json.loads(response['body'])['data']

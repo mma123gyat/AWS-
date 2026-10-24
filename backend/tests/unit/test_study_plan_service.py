@@ -58,7 +58,7 @@ def test_sdk_timeout_falls_back_to_rule_based_and_logs_failure(monkeypatch, time
     assert plan == {
         **study_plan_service.generate_rule_based_plan(BASE_PARAMS),
         "generator": "RULE",
-        "model_id": "rule-based-v1",
+        "model_id": "rule-based-v2-teacher-parameters",
         "prompt_version": bedrock_service.PROMPT_VERSION,
     }
     assert len(logged) == 1
@@ -92,7 +92,7 @@ def _wire_full_generation_chain(monkeypatch, *, complete_plan_with_tasks=None):
             "reason": "reason",
             "tasks": [{"order": 1, "title": "t", "description": "d", "minutes": 10}],
             "generator": "RULE",
-            "model_id": "rule-based-v1",
+            "model_id": "rule-based-v2-teacher-parameters",
             "prompt_version": "v1",
         },
     )
@@ -343,7 +343,7 @@ def test_timeout_fallback_reaches_save_and_cleans_up_on_save_failure(monkeypatch
         assert fail_calls == []
 
     assert captured["generator"] == "RULE"
-    assert captured["model_id"] == "rule-based-v1"
+    assert captured["model_id"] == "rule-based-v2-teacher-parameters"
     assert captured["owner_id"] == "timeout-request"
     assert captured["tasks"]
     assert sum(task["planned_minutes"] for task in captured["tasks"]) <= 15

@@ -12,7 +12,7 @@ import type {
   PutClassProgressRequest,
   PutStudentProgressRequest,
 } from '../types/api';
-import type { AiParameters } from '../types/teacher';
+import type { AiParameterSettings, AiParameters } from '../types/teacher';
 import { ApiError, apiGet, apiPut } from './client';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
@@ -79,17 +79,32 @@ export function putClassProgress(
   return apiPut<ApiCurriculumItem>(`/teacher/classes/${classId}/progress`, payload);
 }
 
-/**
- * AI提案パラメータの適用。対応する実エンドポイントがまだ存在しないため、
- * 実際のネットワーク呼び出しは行わず、ローカルでの受理のみを行うプレースホルダ。
- * 将来 Bedrock の generate_study_plan に渡す場合のマッピング案:
- *   - volume(1-5)       -> available_minutes のスケーリング係数
- *   - difficulty(1-5)   -> understanding の補正値
- *   - supportLevel(1-5) -> システムプロンプトの手厚さを切り替えるフラグ(要バックエンド新設)
- */
+// Mock changes are local to this browser session, never a fallback for real API errors.
+const mockAiSettings = new Map<string, AiParameterSettings>();
+
+export function getAiPlanParameters(studentId: string): Promise<AiParameterSettings> {
+  if (USE_MOCK) {
+    if (!mockStudents.some(student => student.studentId === studentId)) {
+      return Promise.reject(new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404));
+    }
+    return Promise.resolve(structuredClone(mockAiSettings.get(studentId) ?? {
+      studentId, params: { difficulty: 3, volume: 3, supportLevel: 3 }, updatedAt: null,
+    }));
+  }
+  return apiGet<AiParameterSettings>(`/teacher/students/${encodeURIComponent(studentId)}/ai-parameters`);
+}
+
 export function requestAiPlanAdjustment(
   studentId: string,
   params: AiParameters,
-): Promise<{ studentId: string; params: AiParameters }> {
-  return Promise.resolve({ studentId, params });
+): Promise<AiParameterSettings> {
+  if (USE_MOCK) {
+    if (!mockStudents.some(student => student.studentId === studentId)) {
+      return Promise.reject(new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404));
+    }
+    const settings = { studentId, params: { ...params }, updatedAt: new Date().toISOString() };
+    mockAiSettings.set(studentId, settings);
+    return Promise.resolve(structuredClone(settings));
+  }
+  return apiPut<AiParameterSettings>(`/teacher/students/${encodeURIComponent(studentId)}/ai-parameters`, params);
 }

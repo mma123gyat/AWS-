@@ -1,5 +1,5 @@
 import { useLocation, useParams } from 'react-router-dom';
-import { putClassProgress, putStudentProgress, requestAiPlanAdjustment } from '../../../api/teacherApi';
+import { putClassProgress, putStudentProgress } from '../../../api/teacherApi';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { useCurrentTeacherClassId } from '../../../hooks/useCurrentTeacherClassId';
@@ -42,9 +42,7 @@ export function StudentProgressPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-700">AI提案パラメータ調整</h2>
-          <AiParameterSliders
-            onApply={(params) => requestAiPlanAdjustment(studentId, params).then(() => undefined)}
-          />
+          <AiParameterSliders key={studentId} studentId={studentId} />
         </section>
 
         <section className="rounded-lg border border-gray-200 bg-white p-4">
