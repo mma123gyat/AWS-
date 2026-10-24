@@ -145,3 +145,31 @@ def list_records_by_student(student_id: str, limit: int = 50) -> list[dict[str, 
         Limit=limit,
     )
     return response.get("Items", [])
+
+
+def list_records_in_period(student_id: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
+    """Read every page in [start, end), using the writer's UTC ISO sort keys.
+
+    Boundaries omit the timezone suffix so both historical Z and +00:00
+    timestamps at midnight compare correctly. Completed-at is checked again
+    by the aggregation service. No latest-20/50 limit is applied.
+    """
+    kwargs: dict[str, Any] = {
+        "KeyConditionExpression": "student_id = :student_id AND sort_key BETWEEN :start AND :end",
+        "ExpressionAttributeValues": {
+            ":student_id": student_id,
+            ":start": start.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S"),
+            ":end": end.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S"),
+        },
+        "ConsistentRead": True,
+        "ScanIndexForward": True,
+        "Limit": 200,
+    }
+    records = []
+    while True:
+        response = _table().query(**kwargs)
+        records.extend(response.get("Items", []))
+        cursor = response.get("LastEvaluatedKey")
+        if not cursor:
+            return records
+        kwargs["ExclusiveStartKey"] = cursor

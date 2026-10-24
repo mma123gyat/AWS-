@@ -3,6 +3,7 @@ import {
   mockStudentProgress,
   mockStudents,
   mockTeacherLearningLogs,
+  getMockLearningHistory,
 } from '../features/teacher/mock/teacherMockData';
 import type {
   ApiCurriculumItem,
@@ -12,6 +13,8 @@ import type {
   PutClassProgressRequest,
   PutStudentProgressRequest,
 } from '../types/api';
+import type { LearningHistory } from '../types/learningHistory';
+import { validateLearningHistory } from '../features/teacher/utils/learningHistory';
 import type { AiParameterSettings, AiParameters } from '../types/teacher';
 import { ApiError, apiGet, apiPut } from './client';
 
@@ -30,6 +33,16 @@ export function getTeacherLearningLogs(studentId: string): Promise<ApiTeacherLea
       : Promise.reject(new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404));
   }
   return apiGet<ApiTeacherLearningLogs>(`/teacher/students/${encodeURIComponent(studentId)}`);
+}
+
+export async function getTeacherLearningHistory(studentId: string): Promise<LearningHistory> {
+  if (USE_MOCK) {
+    const history = getMockLearningHistory(studentId);
+    if (!history) throw new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404);
+    return validateLearningHistory(history, studentId);
+  }
+  const response = await apiGet<unknown>(`/teacher/students/${encodeURIComponent(studentId)}/learning-history`);
+  return validateLearningHistory(response, studentId);
 }
 
 export function getStudentProgress(studentId: string): Promise<ApiStudentProgressItem[]> {

@@ -132,6 +132,14 @@ export class ApiStack extends cdk.Stack {
 
     const studentItem = students.addResource('{studentId}');
 
+    const getLearningHistoryFn = createFunction(
+      'GetLearningHistoryFn', 'src.handlers.teacher.get_learning_history.handler',
+    );
+    props.studyRecordsTable.grantReadData(getLearningHistoryFn);
+    studentItem.addResource('learning-history').addMethod(
+      'GET', new apigateway.LambdaIntegration(getLearningHistoryFn), authorizedMethodOptions,
+    );
+
     const getStudentDetailFn = createFunction(
       'GetStudentDetailFn',
       'src.handlers.teacher.get_student_detail.handler',
