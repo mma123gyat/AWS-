@@ -2,22 +2,34 @@ import {
   mockClassProgress,
   mockStudentProgress,
   mockStudents,
+  mockTeacherLearningLogs,
 } from '../features/teacher/mock/teacherMockData';
 import type {
   ApiCurriculumItem,
   ApiStudentProgressItem,
   ApiStudentSummary,
+  ApiTeacherLearningLogs,
   PutClassProgressRequest,
   PutStudentProgressRequest,
 } from '../types/api';
 import type { AiParameters } from '../types/teacher';
-import { apiGet, apiPut } from './client';
+import { ApiError, apiGet, apiPut } from './client';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export function getStudents(): Promise<ApiStudentSummary[]> {
   if (USE_MOCK) return Promise.resolve(mockStudents);
   return apiGet<ApiStudentSummary[]>('/teacher/students');
+}
+
+export function getTeacherLearningLogs(studentId: string): Promise<ApiTeacherLearningLogs> {
+  if (USE_MOCK) {
+    const logs = mockTeacherLearningLogs[studentId];
+    return logs
+      ? Promise.resolve(logs)
+      : Promise.reject(new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404));
+  }
+  return apiGet<ApiTeacherLearningLogs>(`/teacher/students/${encodeURIComponent(studentId)}`);
 }
 
 export function getStudentProgress(studentId: string): Promise<ApiStudentProgressItem[]> {

@@ -1,6 +1,7 @@
 // バックエンドが実際に返す生レスポンスの形。エンドポイントごとにキーの命名規則が
 // 統一されていない(teacher.get_students はcamelCase化済みだが、progress系はsnake_caseのまま)
 // ため、フロント表示用の型(teacher.ts)とは別に、実態をそのまま表現する型として保持する。
+import type { StudyRecord } from './studyRecord';
 
 export type CurriculumStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 
@@ -11,6 +12,13 @@ export interface ApiStudentSummary {
   lastStudyDate: string | null;
   lastUnderstanding: number | null;
   todayPlanExists: boolean;
+}
+
+/** GET /teacher/students/{studentId} のうち学習ログが利用するフィールド。 */
+export interface ApiTeacherLearningLogs {
+  studentId: string;
+  name: string | null;
+  recentRecords: StudyRecord[];
 }
 
 /** GET /teacher/students/{studentId}/progress のレスポンス要素(snake_caseのまま) */
