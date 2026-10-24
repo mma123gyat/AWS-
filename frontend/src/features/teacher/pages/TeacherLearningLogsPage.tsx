@@ -1,3 +1,4 @@
+import { TeacherPageHeader } from '../components/TeacherPageHeader';
 import { Link } from 'react-router-dom';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingState } from '../../../components/ui/LoadingState';
@@ -10,7 +11,7 @@ function LearningRecords({ records }: { records: StudyRecord[] }) {
   const total = totalLearningMinutes(records);
   return (
     <>
-      <dl className="flex flex-wrap gap-x-8 gap-y-2 rounded-lg border border-gray-200 bg-white p-4">
+      <dl className="teacher-record-metrics">
         <div><dt className="text-sm text-gray-500">表示件数</dt><dd className="text-lg font-semibold">{records.length}件</dd></div>
         <div><dt className="text-sm text-gray-500">合計学習時間</dt><dd className="text-lg font-semibold">{total === null ? '—' : `${total}分`}</dd></div>
       </dl>
@@ -18,7 +19,15 @@ function LearningRecords({ records }: { records: StudyRecord[] }) {
       {records.length === 0 ? (
         <p className="rounded-lg border border-gray-200 bg-white p-6 text-gray-600" role="status">まだ学習記録がありません。</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <>
+        <div className="teacher-log-cards" aria-label="最近の学習記録">
+          {records.map((record, index) => <article className="teacher-record-card" key={record.record_id || `${record.task_id}-${index}`}>
+            <time>{formatLogDate(record.completed_at)}（日本時間）</time>
+            <h3>{formatSubject(record.subject_id)} ／ {typeof record.unit_name === 'string' && record.unit_name.trim() ? record.unit_name : '単元不明'}</h3>
+            <dl><div><dt>学習時間</dt><dd>{validMinutes(record.actual_minutes) ? `${record.actual_minutes}分` : '—'}</dd></div><div><dt>理解度</dt><dd>{formatUnderstanding(record.understanding)}</dd></div></dl>
+          </article>)}
+        </div>
+        <div className="teacher-log-table teacher-panel teacher-table-scroll" role="region" aria-label="最近の学習記録" tabIndex={0}>
           <table className="w-full min-w-[680px] border-collapse text-left text-sm">
             <caption className="sr-only">選択した生徒の最近の学習記録。日時は日本時間です。</caption>
             <thead className="border-b border-gray-200 bg-gray-50 text-gray-600">
@@ -43,6 +52,7 @@ function LearningRecords({ records }: { records: StudyRecord[] }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </>
   );
@@ -54,9 +64,8 @@ export function TeacherLearningLogsPage() {
   const name = logs.status === 'success' ? logs.data.name ?? selectedStudent?.name : selectedStudent?.name;
 
   return (
-    <div className="teacher-learning-logs space-y-5">
-      <h1 className="text-xl font-semibold text-gray-900">学習ログ</h1>
-      <p className="text-sm text-gray-500">最新20件までの記録です。集計は表示中の記録が対象です。</p>
+    <div className="teacher-page teacher-learning-logs">
+      <TeacherPageHeader title="学習ログ" description="生徒を選び、取り組んだ内容と理解度を確認できます。最新20件までの記録を表示し、集計は表示中の記録が対象です。" />
       {students.status === 'loading' && <LoadingState />}
       {students.status === 'error' && (
         <div><ErrorState message={students.message} /><button type="button" className="learning-logs-button" onClick={retryStudents}>生徒一覧を再読み込み</button></div>
@@ -65,8 +74,8 @@ export function TeacherLearningLogsPage() {
         <p className="rounded-lg border border-gray-200 bg-white p-6" role="status">担当生徒が登録されていません。</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="min-w-0 max-w-full">
+          <div className="teacher-filter-bar">
+            <div className="teacher-log-selector">
               <label htmlFor="learning-log-student" className="mb-1 block text-sm">生徒を選択</label>
               <select id="learning-log-student" className="max-w-full rounded-md border border-gray-300 bg-white px-3 py-2" value={studentId} onChange={event => selectStudent(event.target.value)}>
                 <option value="">生徒を選んでください</option>

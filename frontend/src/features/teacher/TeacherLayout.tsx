@@ -1,6 +1,7 @@
 import { signOut } from 'aws-amplify/auth';
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
+import './TeacherUI.css';
 import { SideNav } from './components/SideNav';
 
 export function TeacherLayout({ onLogout }: { onLogout: () => void }) {
@@ -24,7 +25,7 @@ export function TeacherLayout({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="workspace-shell">
+    <div className="workspace-shell teacher-workspace">
       <SideNav />
       <div className="workspace-main">
         <header className="workspace-header">
@@ -37,7 +38,7 @@ export function TeacherLayout({ onLogout }: { onLogout: () => void }) {
             {busy ? 'ログアウト中…' : 'ログアウト'}
           </button>
         </header>
-        <main className="workspace-content">
+        <main className="workspace-content teacher-content">
           <Outlet />
           {error && (
             <p className="mt-4 text-sm text-red-700" role="alert">

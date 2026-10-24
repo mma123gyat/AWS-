@@ -1,7 +1,8 @@
-import { useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { putClassProgress, putStudentProgress } from '../../../api/teacherApi';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { useCurrentTeacherClassId } from '../../../hooks/useCurrentTeacherClassId';
+import { TeacherPageHeader } from '../components/TeacherPageHeader';
 import { AiParameterSliders } from '../components/AiParameterSliders';
 import { StudentLearningHistoryPanel } from '../components/StudentLearningHistoryPanel';
 import { SchoolProgressForm } from '../components/SchoolProgressForm';
@@ -22,21 +23,21 @@ export function StudentProgressPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-xl font-semibold text-gray-900">
-        授業進度・授業調整{studentName ? `: ${studentName}` : ''}
-      </h1>
+    <div className="teacher-page">
+      <Link className="teacher-inline-link" to="/teacher/students">← 生徒一覧に戻る</Link>
+      <TeacherPageHeader title={studentName ? `${studentName}さんの学習状況` : '生徒の学習状況'} description="学習記録を確認し、生徒に合った学習プランや授業の現在地を設定できます。" action={<Link className="teacher-inline-link" to="/teacher/logs">学習ログを開く →</Link>} />
 
       <StudentLearningHistoryPanel key={studentId} studentId={studentId} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">AI提案パラメータ調整</h2>
+      <div className="teacher-registration-grid">
+        <section className="teacher-panel teacher-settings-card teacher-ai-card">
+          <h2>学習プランの設定</h2>
           <AiParameterSliders key={studentId} studentId={studentId} />
         </section>
 
-        <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">学校進度登録</h2>
+        <section className="teacher-panel teacher-settings-card">
+          <h2>学校の授業の現在地</h2>
+          <p>担当クラスで進めている単元と教科書ページを登録します。</p>
           <SchoolProgressForm
             onSubmit={(input) =>
               putClassProgress(classId, input).then(() => undefined)
@@ -44,8 +45,9 @@ export function StudentProgressPage() {
           />
         </section>
 
-        <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">生徒の現在地登録</h2>
+        <section className="teacher-panel teacher-settings-card">
+          <h2>生徒の学習の現在地</h2>
+          <p>この生徒の単元と理解度を登録します。下の理解度は先生による設定です。</p>
           <StudentProgressForm
             onSubmit={(input) =>
               putStudentProgress(studentId, input).then(() => undefined)

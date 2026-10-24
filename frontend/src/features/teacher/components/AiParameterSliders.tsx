@@ -87,12 +87,18 @@ export function AiParameterSliders({ studentId }: { studentId: string }) {
         <>
           <fieldset disabled={saving} className="space-y-4">
             <legend className="sr-only">生徒のAI提案設定</legend>
-            <Slider label="難易度" value={params.difficulty} onChange={update('difficulty')} />
-            <p className="text-xs text-gray-500">1：基礎中心 ／ 3：標準 ／ 5：応用に挑戦</p>
-            <Slider label="学習量" value={params.volume} onChange={update('volume')} />
-            <p className="text-xs text-gray-500">1〜2：少なめ ／ 3：標準 ／ 4〜5：確認を多めに。少なめでは取り組む時間を短くし、多めでも生徒が選んだ時間は超えません。</p>
-            <Slider label="サポートの強さ" value={params.supportLevel} onChange={update('supportLevel')} />
-            <p className="text-xs text-gray-500">1：簡潔に ／ 3：要点を説明 ／ 5：手順やヒントを丁寧に</p>
+            <div className="teacher-ai-control">
+              <Slider label="難易度" value={params.difficulty} onChange={update('difficulty')} />
+              <p className="mt-3 text-xs text-gray-500">1：基礎中心 ／ 3：標準 ／ 5：応用に挑戦</p>
+            </div>
+            <div className="teacher-ai-control">
+              <Slider label="学習量" value={params.volume} onChange={update('volume')} />
+              <p className="mt-3 text-xs text-gray-500">1〜2：少なめ ／ 3：標準 ／ 4〜5：確認を多めに。少なめでは取り組む時間を短くし、多めでも生徒が選んだ時間は超えません。</p>
+            </div>
+            <div className="teacher-ai-control">
+              <Slider label="サポートの強さ" value={params.supportLevel} onChange={update('supportLevel')} />
+              <p className="mt-3 text-xs text-gray-500">1：簡潔に ／ 3：要点を説明 ／ 5：手順やヒントを丁寧に</p>
+            </div>
           </fieldset>
           <p className="text-xs text-gray-500">{settings.updatedAt ? `最終保存：${formatLogDate(settings.updatedAt)}（日本時間）` : '未設定のため、標準値を表示しています。'}</p>
           <button type="button" onClick={handleApply} disabled={saving} className="ai-parameter-button ai-parameter-save">{saving ? '保存中…' : '設定を保存'}</button>

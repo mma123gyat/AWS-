@@ -16,13 +16,14 @@ export function StudentTable({ students }: { students: Student[] }) {
   }
 
   return (
-    <table className="w-full border-collapse text-sm">
+    <table className="teacher-student-table w-full border-collapse text-sm">
+      <caption className="sr-only">担当生徒の学習状況。氏名のリンクから詳細を開けます。</caption>
       <thead>
         <tr className="border-b border-gray-200 text-left text-gray-500">
-          <th className="px-4 py-2 font-medium">氏名</th>
-          <th className="px-4 py-2 font-medium">直近の理解度</th>
-          <th className="px-4 py-2 font-medium">最終学習日</th>
-          <th className="px-4 py-2 font-medium">状況</th>
+          <th scope="col" className="px-4 py-2 font-medium">氏名</th>
+          <th scope="col" className="px-4 py-2 font-medium">直近の理解度</th>
+          <th scope="col" className="px-4 py-2 font-medium">最終学習日</th>
+          <th scope="col" className="px-4 py-2 font-medium">状況</th>
         </tr>
       </thead>
       <tbody>

@@ -2,27 +2,16 @@ import { Link } from 'react-router-dom';
 import type { Student } from '../../../types/teacher';
 
 export function AlertSummary({ students }: { students: Student[] }) {
-  const normal = students.filter((s) => s.status === 'NORMAL').length;
-  const warning = students.filter((s) => s.status === 'WARNING').length;
-  const unsubmitted = students.filter((s) => s.status === 'UNSUBMITTED').length;
-
   const cards = [
-    { label: '確認事項なし', value: normal, className: 'border-green-200 bg-green-50 text-green-700' },
-    { label: '声かけ候補', value: warning, className: 'border-amber-200 bg-amber-50 text-amber-800' },
-    { label: '記録を確認', value: unsubmitted, className: 'border-slate-200 bg-slate-50 text-slate-700' },
+    { label: '担当生徒', value: students.length, note: '担当する生徒の人数', tone: 'blue' },
+    { label: '声かけ候補', value: students.filter(s => s.status === 'WARNING').length, note: '記録をもとに状況を確認', tone: 'amber' },
+    { label: '記録を確認', value: students.filter(s => s.status === 'UNSUBMITTED').length, note: '記録や利用状況を確認', tone: 'slate' },
+    { label: '確認事項なし', value: students.filter(s => s.status === 'NORMAL').length, note: '現在の表示基準による区分', tone: 'green' },
   ];
-
-  return (
-    <div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {cards.map((card) => (
-          <div key={card.label} className={`rounded-lg border p-4 ${card.className}`}>
-            <p className="text-sm font-medium">{card.label}</p>
-            <p className="mt-1 text-2xl font-semibold">{card.value}人</p>
-          </div>
-        ))}
-      </div>
-      <Link to="/teacher/alerts" className="mt-3 inline-block text-sm text-blue-600 hover:underline">確認する理由をアラート画面で見る</Link>
-    </div>
-  );
+  return <div>
+    <dl className="teacher-summary-grid">{cards.map(card => <div key={card.label} className={`teacher-metric teacher-metric-${card.tone}`}>
+      <dt>{card.label}</dt><dd>{card.value}<span>人</span><small>{card.note}</small></dd>
+    </div>)}</dl>
+    <Link to="/teacher/alerts" className="teacher-inline-link">確認する理由をアラート画面で見る →</Link>
+  </div>;
 }

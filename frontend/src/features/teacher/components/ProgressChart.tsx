@@ -15,7 +15,7 @@ export function ProgressChart({ history }: { history: LearningHistory }) {
       <p className="text-sm font-medium">{history.name?.trim() || '名前未設定'}さんの学習記録</p>
       <p className="text-sm text-gray-600">対象期間：{formatHistoryDate(history.startDate)}〜{formatHistoryDate(history.endDate)}（日本時間）</p>
       <p className="text-xs text-gray-500">取得日時：{formatLogDate(history.generatedAt)}（日本時間）。この期間の全記録を集計しています。</p>
-      <dl className="flex flex-wrap gap-6 rounded-lg bg-gray-50 p-4">
+      <dl className="teacher-history-summary">
         <div><dt className="text-sm text-gray-600">記録された学習時間</dt><dd className="text-xl font-semibold">{history.totalMinutes === null ? '集計できません' : `${history.totalMinutes}分`}</dd></div>
         <div><dt className="text-sm text-gray-600">学習記録</dt><dd className="text-xl font-semibold">{history.recordCount}件</dd></div>
       </dl>
@@ -62,7 +62,9 @@ export function ProgressChart({ history }: { history: LearningHistory }) {
           <p className="text-xs text-gray-500">生徒が学習完了時に記録した1〜5の値です。記録がない日は線をつなぎません。異なる単元を含み、先生が登録した現在地の理解度は含みません。</p>
         </div>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <details className="teacher-source-data">
+        <summary>日別の記録を表で見る（7日分）</summary>
+        <div className="teacher-table-scroll" role="region" aria-label="グラフの元データ" tabIndex={0}>
         <table className="w-full min-w-[620px] text-left text-sm">
           <caption className="p-3 text-left font-medium">グラフの元データ{selected ? `：理解度は${selected.subjectId === null ? '教科不明' : formatSubject(selected.subjectId)}` : ''}</caption>
           <thead className="border-y border-gray-200 bg-gray-50"><tr>
@@ -79,7 +81,8 @@ export function ProgressChart({ history }: { history: LearningHistory }) {
             </tr>;
           })}</tbody>
         </table>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
