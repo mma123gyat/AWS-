@@ -34,6 +34,8 @@
 }
 
 @media print {
+  /* Override the shared form display rule as well as utility-layer styles. */
+  .support-report form,
   .support-report .support-report-print-button {
     display: none;
   }
