@@ -29,7 +29,7 @@ export function SupportLayout({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <nav className="flex h-full w-48 flex-col gap-1 border-r border-gray-200 bg-white p-4 print:hidden">
+      <nav className="flex h-full w-48 shrink-0 flex-col gap-1 border-r border-gray-200 bg-white p-4 print:hidden">
         <p className="mb-2 px-3 text-xs font-semibold tracking-wide text-gray-400">医療・連携用レポート</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
@@ -59,7 +59,7 @@ export function SupportLayout({ onLogout }: { onLogout: () => void }) {
           </p>
         )}
       </nav>
-      <main className="flex-1 p-6">
+      <main className="min-w-0 flex-1 p-6">
         <Outlet />
       </main>
     </div>

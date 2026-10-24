@@ -4,20 +4,22 @@ import { useSupportReport } from '../../../hooks/useSupportReport';
 import { LearningReportCard } from '../components/LearningReportCard';
 import { MessageForm } from '../components/MessageForm';
 import { SubjectProgressTable } from '../components/SubjectProgressTable';
+import './SupportReportPage.css';
 
 export function SupportReportPage() {
   const state = useSupportReport();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between print:hidden">
-        <h1 className="text-xl font-semibold text-gray-900">医療・連携用レポート</h1>
+    <div className="support-report space-y-6">
+      <div className="support-report-header">
+        <h1 className="support-report-title text-xl font-semibold text-gray-900">医療・連携用レポート</h1>
         {state.status === 'success' && (
           <button
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            type="button"
+            className="support-report-print-button"
             onClick={() => window.print()}
           >
-            PDF出力(印刷)
+            PDF出力（印刷）
           </button>
         )}
       </div>
