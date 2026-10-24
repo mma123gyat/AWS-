@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import StudyTimeForm from './StudyTimeForm'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { TeacherLayout } from './features/teacher/TeacherLayout'
 import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
@@ -14,6 +14,7 @@ import { ParentLayout } from './features/parent/ParentLayout'
 import { ParentDashboardPage } from './features/parent/pages/ParentDashboardPage'
 import { SupportLayout } from './features/support/SupportLayout'
 import { SupportReportPage } from './features/support/pages/SupportReportPage'
+import { SharingSettingsPanel } from './features/sharing/SharingSettingsPanel'
 import { SharingSettingsPage } from './features/support/pages/SharingSettingsPage'
 import { StudentDashboardPage } from './features/student/pages/StudentDashboardPage'
 import { useAuthSession } from './hooks/useAuthSession'
@@ -129,6 +130,7 @@ function StudentLayout({ email, onLogout }: { email: string; onLogout: () => voi
         <p className="eyebrow">学習サポート</p>
         {email && <p>{email}</p>}
 
+        <nav className="sharing-nav" aria-label="生徒メニュー"><Link to="/dashboard">ダッシュボード</Link><Link to="/sharing">共有設定</Link></nav>
         <Outlet />
 
         <button
@@ -283,6 +285,7 @@ function App() {
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
             <Route path="/condition" element={<ConditionPage />} />
             <Route path="/dashboard" element={<StudentDashboardPage />} />
+            <Route path="/sharing" element={<SharingSettingsPanel key={session.email} role="STUDENT" />} />
           </Route>
         </Route>
 
@@ -301,6 +304,7 @@ function App() {
           <Route path="/parent" element={<ParentLayout email={session.email} onLogout={session.refresh} />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<ParentDashboardPage />} />
+            <Route path="sharing" element={<SharingSettingsPanel key={session.email} role="PARENT" />} />
           </Route>
         </Route>
 

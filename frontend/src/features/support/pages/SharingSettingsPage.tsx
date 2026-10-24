@@ -1,5 +1,5 @@
-import { PlaceholderPage } from '../../../components/ui/PlaceholderPage';
+import { SharingSettingsPanel } from '../../sharing/SharingSettingsPanel';
 
 export function SharingSettingsPage() {
-  return <PlaceholderPage title="共有設定" />;
+  return <SharingSettingsPanel role="SUPPORT" />;
 }
