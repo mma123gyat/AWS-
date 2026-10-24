@@ -3,6 +3,7 @@ export interface Student {
   name: string;
   progress: number; // 0-100%
   lastLogin: string;
+  // UNSUBMITTED is a legacy internal key meaning 記録を確認, not a missed submission.
   status: 'NORMAL' | 'WARNING' | 'UNSUBMITTED';
 }
 

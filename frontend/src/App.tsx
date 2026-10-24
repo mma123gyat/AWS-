@@ -9,13 +9,13 @@ import { StudentListPage } from './features/teacher/pages/StudentListPage'
 import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
 import { TeacherDashboardPage } from './features/teacher/pages/TeacherDashboardPage'
 import { TeacherLearningLogsPage } from './features/teacher/pages/TeacherLearningLogsPage'
+import { TeacherAlertsPage } from './features/teacher/pages/TeacherAlertsPage'
 import { ParentLayout } from './features/parent/ParentLayout'
 import { ParentDashboardPage } from './features/parent/pages/ParentDashboardPage'
 import { SupportLayout } from './features/support/SupportLayout'
 import { SupportReportPage } from './features/support/pages/SupportReportPage'
 import { SharingSettingsPage } from './features/support/pages/SharingSettingsPage'
 import { StudentDashboardPage } from './features/student/pages/StudentDashboardPage'
-import { PlaceholderPage } from './components/ui/PlaceholderPage'
 import { useAuthSession } from './hooks/useAuthSession'
 import type { Role, SessionStatus } from './hooks/useAuthSession'
 
@@ -293,7 +293,7 @@ function App() {
             <Route path="students" element={<StudentListPage />} />
             <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
             <Route path="logs" element={<TeacherLearningLogsPage />} />
-            <Route path="alerts" element={<PlaceholderPage title="アラート" />} />
+            <Route path="alerts" element={<TeacherAlertsPage />} />
           </Route>
         </Route>
 
