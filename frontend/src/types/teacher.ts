@@ -7,12 +7,6 @@ export interface Student {
   status: 'NORMAL' | 'WARNING' | 'UNSUBMITTED';
 }
 
-export interface ProgressData {
-  month: string;
-  schoolProgress: number;
-  studentProgress: number;
-}
-
 export interface AiParameters {
   difficulty: number;
   volume: number;

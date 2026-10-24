@@ -6,6 +6,7 @@ import type {
   ApiStudentSummary,
   ApiTeacherLearningLogs,
 } from '../../../types/api';
+import type { LearningHistory, SubjectLearningHistory } from '../../../types/learningHistory';
 import type { StudyRecord } from '../../../types/studyRecord';
 
 export const mockStudents: ApiStudentSummary[] = [
@@ -97,3 +98,36 @@ export const mockClassProgress: ApiCurriculumItem[] = [
     updated_at: new Date().toISOString(),
   },
 ];
+
+/** Mock mode only: aggregate the same records shown in the mock learning log. */
+export function getMockLearningHistory(studentId: string): LearningHistory | null {
+  const logs = mockTeacherLearningLogs[studentId];
+  if (!logs) return null;
+  const generatedAt = new Date().toISOString();
+  const endDate = new Date(Date.parse(generatedAt) + 9 * 3_600_000).toISOString().slice(0, 10);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  const dates = Array.from({ length: 7 }, (_, index) => new Date(end - (6 - index) * 86_400_000).toISOString().slice(0, 10));
+  const days = dates.map(date => ({ date, minutes: 0, recordCount: 0 }));
+  const subjects = new Map<string, SubjectLearningHistory>();
+  const records = [...logs.recentRecords].sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at));
+  for (const record of records) {
+    const date = new Date(Date.parse(record.completed_at) + 9 * 3_600_000).toISOString().slice(0, 10);
+    const index = dates.indexOf(date);
+    if (index < 0) continue;
+    days[index].minutes += record.actual_minutes;
+    days[index].recordCount += 1;
+    if (!subjects.has(record.subject_id)) {
+      subjects.set(record.subject_id, { subjectId: record.subject_id, days: dates.map(date => ({ date, understanding: null, recordCount: 0, unitName: null, completedAt: null })) });
+    }
+    const point = subjects.get(record.subject_id)!.days[index];
+    point.understanding = record.understanding;
+    point.recordCount += 1;
+    point.unitName = record.unit_name;
+    point.completedAt = record.completed_at;
+  }
+  return {
+    studentId, name: logs.name, startDate: dates[0], endDate, timeZone: 'Asia/Tokyo', generatedAt,
+    recordCount: days.reduce((sum, day) => sum + day.recordCount, 0), unassignedRecordCount: 0,
+    totalMinutes: days.reduce((sum, day) => sum + day.minutes, 0), days, subjects: [...subjects.values()],
+  };
+}
