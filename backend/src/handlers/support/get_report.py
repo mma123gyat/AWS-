@@ -3,10 +3,10 @@ from datetime import date, timedelta
 from src.repositories.student_progresses_repository import list_progresses_by_student
 from src.repositories.study_records_repository import list_records_by_student
 from src.repositories.subjects_repository import get_subject_by_id
-from src.repositories.users_repository import get_user_by_id
+from src.models.sharing_settings import read_settings
+from src.services.sharing_settings_service import resolve_student
 from src.utils.auth_context import get_authenticated_user, require_role
 from src.utils.dates import jst_date_from_iso, today_jst
-from src.utils.errors import ValidationError
 from src.utils.handler_wrapper import lambda_handler
 from src.utils.response import success
 
@@ -33,15 +33,14 @@ def handler(event: dict, context) -> dict:
     user = get_authenticated_user(event)
     require_role(user, "SUPPORT")
 
-    if not user.linked_student_id:
-        raise ValidationError("対象の生徒が設定されていません。")
-
-    student_id = user.linked_student_id
-    student = get_user_by_id(student_id)
+    _, student = resolve_student(user, "SUPPORT")
+    student_id = student["user_id"]
+    settings = read_settings(student)
+    support = settings["support"]
     today = today_jst()
 
-    progresses = list_progresses_by_student(student_id)
-    records = list_records_by_student(student_id, limit=50)
+    progresses = list_progresses_by_student(student_id) if support["subjectProgress"] else []
+    records = list_records_by_student(student_id, limit=50) if support["studySummary"] else []
     recent = _recent_records(records, today)
     recent_subject_ids = {r.get("subject_id") for r in recent if r.get("subject_id")}
 
@@ -61,7 +60,7 @@ def handler(event: dict, context) -> dict:
         # 診断・医学的判断ではなく、既存データから確認できる教育上の事実のみを理由とする。
         if int(progress.get("understanding") or 0) < LOW_UNDERSTANDING_THRESHOLD:
             reasons.append("理解度が低い教科")
-        if subject_id not in recent_subject_ids:
+        if support["studySummary"] and subject_id not in recent_subject_ids:
             reasons.append("最近学習記録が少ない教科")
         if reasons:
             support_needed.append(
@@ -76,8 +75,8 @@ def handler(event: dict, context) -> dict:
         {
             "studentId": student_id,
             "studentName": student.get("name") if student else None,
-            "recentStudyMinutes": sum(int(r.get("actual_minutes") or 0) for r in recent),
-            "recentRecordCount": len(recent),
+            "recentStudyMinutes": sum(int(r.get("actual_minutes") or 0) for r in recent) if support["studySummary"] else None,
+            "recentRecordCount": len(recent) if support["studySummary"] else None,
             "subjectProgresses": [
                 {
                     "subjectId": progress["subject_id"],
@@ -86,8 +85,9 @@ def handler(event: dict, context) -> dict:
                     "status": progress.get("status"),
                 }
                 for progress in progresses
-            ],
-            "supportNeededSubjects": support_needed,
+            ] if support["subjectProgress"] else None,
+            "supportNeededSubjects": support_needed if support["subjectProgress"] else None,
+            "canSendMessage": support["messages"] and settings["parent"]["messages"],
             "attendance": None,
             "attendanceNote": "出席情報はまだ連携されていません。",
         }

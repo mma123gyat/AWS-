@@ -88,6 +88,7 @@ def tables():
             ],
             BillingMode="PAY_PER_REQUEST",
         )
+        create_user(STUDENT_ID, "target-sub", "テスト生徒", "target@example.invalid", "STUDENT")
         yield
         dynamodb_client.get_resource.cache_clear()
         dynamodb_client.get_client.cache_clear()

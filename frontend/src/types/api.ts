@@ -81,11 +81,11 @@ export interface ApiBadge {
 /** GET /parents/me/dashboard のレスポンス(ハンドラ内でcamelCase化済み。messagesのみ生のまま) */
 export interface ApiParentDashboard {
   studentName: string | null;
-  weeklyStudyMinutes: number;
-  studiedDays: number;
-  recordCount: number;
-  badges: ApiBadge[];
-  messages: ApiMessageItem[];
+  weeklyStudyMinutes: number | null;
+  studiedDays: number | null;
+  recordCount: number | null;
+  badges: ApiBadge[] | null;
+  messages: ApiMessageItem[] | null;
 }
 
 /** GET /support/me/report のレスポンス要素: 教科ごとの状況 */
@@ -107,10 +107,11 @@ export interface ApiSupportNeededSubject {
 export interface ApiSupportReport {
   studentId: string;
   studentName: string | null;
-  recentStudyMinutes: number;
-  recentRecordCount: number;
-  subjectProgresses: ApiSupportSubjectProgress[];
-  supportNeededSubjects: ApiSupportNeededSubject[];
+  recentStudyMinutes: number | null;
+  recentRecordCount: number | null;
+  subjectProgresses: ApiSupportSubjectProgress[] | null;
+  supportNeededSubjects: ApiSupportNeededSubject[] | null;
+  canSendMessage: boolean;
   /** 教員側の出席・評価連携画面が未実装のため、現時点では常にnull */
   attendance: null;
   attendanceNote: string;

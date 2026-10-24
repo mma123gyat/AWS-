@@ -14,6 +14,7 @@ export const mockSupportReport: ApiSupportReport = {
   supportNeededSubjects: [
     { subjectId: 'english', subjectName: '英語', reasons: ['理解度が低い教科', '最近学習記録が少ない教科'] },
   ],
+  canSendMessage: true,
   attendance: null,
   attendanceNote: '出席情報はまだ連携されていません。',
 };

@@ -16,13 +16,13 @@ export function ParentDashboardPage() {
       {state.status === 'error' && <ErrorState message={state.message} />}
       {state.status === 'success' && (
         <>
-          <LearningSummaryCard
+          {state.data.weeklyStudyMinutes !== null && state.data.studiedDays !== null ? <LearningSummaryCard
             studentName={state.data.studentName}
             weeklyStudyMinutes={state.data.weeklyStudyMinutes}
             studiedDays={state.data.studiedDays}
-          />
-          <BadgeList badges={state.data.badges} />
-          <MessageList messages={state.data.messages} />
+          /> : <p>学習のまとめは共有されていません。</p>}
+          {state.data.badges !== null && <BadgeList badges={state.data.badges} />}
+          {state.data.messages !== null ? <MessageList messages={state.data.messages} /> : <p>メッセージは共有されていません。</p>}
         </>
       )}
     </div>

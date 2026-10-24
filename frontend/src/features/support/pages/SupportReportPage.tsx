@@ -29,11 +29,11 @@ export function SupportReportPage() {
       {state.status === 'success' && (
         <>
           <LearningReportCard report={state.data} />
-          <SubjectProgressTable
+          {state.data.subjectProgresses !== null && state.data.supportNeededSubjects !== null ? <SubjectProgressTable
             subjects={state.data.subjectProgresses}
             supportNeeded={state.data.supportNeededSubjects}
-          />
-          <MessageForm />
+          /> : <p>教科別の状況は共有されていません。</p>}
+          {state.data.canSendMessage ? <MessageForm /> : <p>共有設定により、保護者へのメッセージ送信は停止しています。</p>}
         </>
       )}
     </div>

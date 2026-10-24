@@ -193,9 +193,15 @@ def test_parent_totals_and_teacher_summary_use_the_saved_record_once(tables):
     saved = data(post())
     post()
     parent = AuthenticatedUser("parent-1", "parent-sub", "保護者", "parent@example.invalid", "PARENT", None, STUDENT.user_id)
-    with patch.object(parent_dashboard, "get_authenticated_user", return_value=parent), patch.object(
-        parent_dashboard, "get_user_by_id", return_value={"name": STUDENT.name}
-    ):
+    # Sharing authorization now checks real Users rows instead of a name-only stub.
+    users = tables.create_table(
+        TableName="Users", KeySchema=[{"AttributeName": "user_id", "KeyType": "HASH"}],
+        AttributeDefinitions=[{"AttributeName": "user_id", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    users.put_item(Item={"user_id": STUDENT.user_id, "cognito_sub": STUDENT.cognito_sub, "role": "STUDENT", "name": STUDENT.name})
+    users.put_item(Item={"user_id": parent.user_id, "cognito_sub": parent.cognito_sub, "role": "PARENT", "linked_student_id": STUDENT.user_id})
+    with patch.object(parent_dashboard, "get_authenticated_user", return_value=parent):
         response = parent_dashboard.handler({}, None)
     summary = data(response)
     assert summary["weeklyStudyMinutes"] == 7

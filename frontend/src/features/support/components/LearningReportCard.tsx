@@ -7,11 +7,11 @@ export function LearningReportCard({ report }: { report: ApiSupportReport }) {
       <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
         <div>
           <p className="text-xs text-gray-400">直近7日間の学習時間</p>
-          <p className="text-xl font-semibold text-gray-900">{report.recentStudyMinutes}分</p>
+          <p className="text-xl font-semibold text-gray-900">{report.recentStudyMinutes === null ? '共有されていません' : `${report.recentStudyMinutes}分`}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400">直近7日間の学習記録</p>
-          <p className="text-xl font-semibold text-gray-900">{report.recentRecordCount}件</p>
+          <p className="text-xl font-semibold text-gray-900">{report.recentRecordCount === null ? '共有されていません' : `${report.recentRecordCount}件`}</p>
         </div>
         <div>
           <p className="text-xs text-gray-400">出席情報</p>

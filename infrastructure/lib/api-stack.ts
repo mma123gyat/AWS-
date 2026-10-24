@@ -284,10 +284,8 @@ export class ApiStack extends cdk.Stack {
     );
     props.studyRecordsTable.grantReadData(getParentDashboardFn);
     props.messagesTable.grantReadData(getParentDashboardFn);
-    this.api.root
-      .addResource('parents')
-      .addResource('me')
-      .addResource('dashboard')
+    const parentsMe = this.api.root.addResource('parents').addResource('me');
+    parentsMe.addResource('dashboard')
       .addMethod('GET', new apigateway.LambdaIntegration(getParentDashboardFn), authorizedMethodOptions);
 
     // /support/me/report, /support/me/messages
@@ -303,9 +301,31 @@ export class ApiStack extends cdk.Stack {
 
     const postSupportMessageFn = createFunction('PostSupportMessageFn', 'src.handlers.support.post_message.handler');
     props.messagesTable.grantReadWriteData(postSupportMessageFn);
+    postSupportMessageFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:ConditionCheckItem'], resources: [props.usersTable.tableArn],
+    }));
     supportMe
       .addResource('messages')
       .addMethod('POST', new apigateway.LambdaIntegration(postSupportMessageFn), authorizedMethodOptions);
+
+    // Sharing is scoped to the caller's own student/link; support is read-only.
+    for (const [prefix, folder, resource, editable] of [
+      ['Student', 'students', studentsMe, true],
+      ['Parent', 'parents', parentsMe, true],
+      ['Support', 'support', supportMe, false],
+    ] as const) {
+      const sharing = resource.addResource('sharing');
+      const getSharingFn = createFunction(`Get${prefix}SharingFn`, `src.handlers.${folder}.get_sharing.handler`);
+      sharing.addMethod('GET', new apigateway.LambdaIntegration(getSharingFn), authorizedMethodOptions);
+      if (editable) {
+        const putSharingFn = createFunction(`Put${prefix}SharingFn`, `src.handlers.${folder}.put_sharing.handler`);
+        putSharingFn.addToRolePolicy(new iam.PolicyStatement({
+          actions: ['dynamodb:UpdateItem', 'dynamodb:ConditionCheckItem'],
+          resources: [props.usersTable.tableArn],
+        }));
+        sharing.addMethod('PUT', new apigateway.LambdaIntegration(putSharingFn), authorizedMethodOptions);
+      }
+    }
 
     new cdk.CfnOutput(this, 'ApiUrl', { value: this.api.url });
   }

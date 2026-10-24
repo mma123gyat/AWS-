@@ -1,6 +1,6 @@
 import { signOut } from 'aws-amplify/auth';
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 
 export function ParentLayout({ email, onLogout }: { email: string; onLogout: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -38,6 +38,7 @@ export function ParentLayout({ email, onLogout }: { email: string; onLogout: () 
         </button>
       </header>
       <main className="p-6">
+        <nav className="sharing-nav" aria-label="保護者メニュー"><Link to="/parent/dashboard">ダッシュボード</Link><Link to="/parent/sharing">共有設定</Link></nav>
         <Outlet />
         {error && (
           <p className="mt-4 text-sm text-red-700" role="alert">
