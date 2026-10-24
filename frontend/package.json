@@ -11,7 +11,8 @@
     "test:alerts": "node --experimental-strip-types --test tests/teacherAlerts.test.ts",
     "test:logs": "node --experimental-strip-types --test tests/learningLogs.test.ts",
     "preview": "vite preview",
-    "test:sharing": "node --experimental-strip-types --test tests/sharingSettings.test.ts"
+    "test:sharing": "node --experimental-strip-types --test tests/sharingSettings.test.ts",
+    "test:teacher-ui": "node --experimental-strip-types --test tests/studentFilters.test.ts tests/teacherAlerts.test.ts tests/learningLogs.test.ts tests/learningHistory.test.ts"
   },
   "dependencies": {
     "aws-amplify": "^6.22.1",

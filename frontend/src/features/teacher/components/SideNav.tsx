@@ -1,3 +1,4 @@
+import { BrandMark } from '../../../components/layout/PortalFrame';
 import { NavLink } from 'react-router-dom';
 
 const NAV_ITEMS = [
@@ -10,7 +11,8 @@ const NAV_ITEMS = [
 export function SideNav() {
   return (
     <nav className="workspace-sidebar" aria-label="教員メニュー">
-      <p className="workspace-sidebar-title">教員管理</p>
+      <div className="teacher-sidebar-brand"><BrandMark /><div><p>学習サポート</p><span>教員ポータル</span></div></div>
+      <p className="teacher-sidebar-section">学習を見守る</p>
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}

@@ -43,7 +43,7 @@ export function SchoolProgressForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form aria-label="学校の授業の現在地の登録" onSubmit={handleSubmit} className="space-y-3">
       <div>
         <label htmlFor="subjectId" className="mb-1 block text-sm font-medium text-gray-700">
           教科
