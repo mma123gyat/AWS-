@@ -1,0 +1,17 @@
+.teacher-alerts .teacher-alerts-button {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #43536b;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.teacher-alerts .teacher-alerts-button:hover:not(:disabled) {
+  background: #f1f5f9;
+}

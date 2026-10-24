@@ -6,7 +6,7 @@ import type { Student } from '../../../types/teacher';
 const HIGHLIGHT_ROW: Record<Student['status'], string> = {
   NORMAL: '',
   WARNING: 'bg-amber-50',
-  UNSUBMITTED: 'bg-red-50',
+  UNSUBMITTED: 'bg-slate-50',
 };
 
 export function StudentTable({ students }: { students: Student[] }) {

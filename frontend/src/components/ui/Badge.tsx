@@ -1,9 +1,9 @@
 import type { Student } from '../../types/teacher';
 
 const STYLES: Record<Student['status'], { label: string; className: string; icon: string }> = {
-  NORMAL: { label: '順調', className: 'bg-green-50 text-green-700 border-green-200', icon: '●' },
-  WARNING: { label: '要確認', className: 'bg-amber-50 text-amber-800 border-amber-200', icon: '▲' },
-  UNSUBMITTED: { label: '未提出', className: 'bg-red-50 text-red-700 border-red-200', icon: '■' },
+  NORMAL: { label: '確認事項なし', className: 'bg-green-50 text-green-700 border-green-200', icon: '●' },
+  WARNING: { label: '声かけ候補', className: 'bg-amber-50 text-amber-800 border-amber-200', icon: '▲' },
+  UNSUBMITTED: { label: '記録を確認', className: 'bg-slate-50 text-slate-700 border-slate-200', icon: '■' },
 };
 
 export function StatusBadge({ status }: { status: Student['status'] }) {
