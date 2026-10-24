@@ -1,0 +1,48 @@
+.support-report-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.support-report-header .support-report-title {
+  flex: 1 1 18rem;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.support-report .support-report-print-button {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 40px;
+  max-width: 100%;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  color: #43536b;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.support-report .support-report-print-button:hover {
+  background: #f1f5f9;
+}
+
+@media print {
+  .support-report .support-report-print-button {
+    display: none;
+  }
+
+  .support-report .support-report-table-container {
+    overflow: visible;
+  }
+
+  .support-report .support-report-table {
+    min-width: 0;
+  }
+}
