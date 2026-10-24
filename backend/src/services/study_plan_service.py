@@ -2,6 +2,7 @@ import os
 from typing import Any
 
 from src.models.enums import PlanGenerator
+from src.models.ai_parameters import read_ai_parameters
 from src.repositories.curriculums_repository import get_curriculum
 from src.repositories.school_classes_repository import get_class_by_id
 from src.repositories.student_progresses_repository import list_progresses_by_student
@@ -21,7 +22,7 @@ from src.utils.dates import today_jst
 from src.utils.errors import ConflictError, ValidationError
 from src.utils.logger import log_event
 
-RULE_BASED_MODEL_ID = "rule-based-v1"
+RULE_BASED_MODEL_ID = "rule-based-v2-teacher-parameters"
 
 # The Lambda timeout is 30s (infrastructure/lib/api-stack.ts). If an
 # invocation is killed by that timeout it never gets to call fail_plan, so
@@ -101,6 +102,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
                 title=cached["title"], reason=cached["reason"], generator=cached["generator"],
                 model_id=cached["model_id"], prompt_version=cached["prompt_version"],
                 tasks=[], created_at=lock["created_at"], check_condition=True,
+                ai_parameters=cached.get("ai_parameters"),
             )
             return {**restored, "tasks": list_tasks_by_plan(plan_id)}
 
@@ -127,6 +129,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
             "student_topic": progress["unit_name"],
             "understanding": int(progress["understanding"]),
             "available_minutes": available_minutes,
+            "ai_parameters": read_ai_parameters(student.get("ai_parameters")),
         }
 
         plan = generate_plan(params, request_id)
@@ -161,6 +164,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
             tasks=task_items,
             created_at=lock["created_at"],
             check_condition=True,
+            ai_parameters=params["ai_parameters"],
         )
     except PlanLockLostError:
         # Our lock was already superseded (timeout takeover) before we could

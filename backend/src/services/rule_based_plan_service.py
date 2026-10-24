@@ -1,67 +1,39 @@
 from typing import Any
 
+from src.models.ai_parameters import plan_guidance
+
 
 def generate_rule_based_plan(params: dict[str, Any]) -> dict:
-    """Deterministic fallback used when Bedrock is unavailable or returns an
-    invalid plan. Keeps the same shape as bedrock_service.generate_study_plan
-    so callers can treat both interchangeably.
-    """
-    available_minutes = params["available_minutes"]
+    """Deterministic fallback honoring the same teacher settings and time cap."""
+    if params["available_minutes"] <= 0:
+        raise ValueError("a rest day must not generate a plan")
+    guidance = plan_guidance(params)
     subject = params["subject"]
-    student_topic = params["student_topic"]
-
-    if available_minutes <= 5:
-        tasks = [
-            {
-                "order": 1,
-                "title": f"{student_topic}の基本を確認",
-                "minutes": available_minutes,
-                "description": "今日は短く、要点だけ振り返りましょう。",
-            }
-        ]
-    elif available_minutes <= 15:
-        first_half = available_minutes // 2
-        tasks = [
-            {
-                "order": 1,
-                "title": f"{student_topic}の確認",
-                "minutes": first_half,
-                "description": "ポイントを振り返ります。",
-            },
-            {
-                "order": 2,
-                "title": "確認問題",
-                "minutes": available_minutes - first_half,
-                "description": "短い問題で理解を確認します。",
-            },
-        ]
-    else:
-        third = available_minutes // 3
-        tasks = [
-            {
-                "order": 1,
-                "title": f"{student_topic}の確認",
-                "minutes": third,
-                "description": "ポイントを振り返ります。",
-            },
-            {
-                "order": 2,
-                "title": "例題",
-                "minutes": third,
-                "description": "例題を解いて理解を深めます。",
-            },
-            {
-                "order": 3,
-                "title": "確認問題",
-                "minutes": available_minutes - 2 * third,
-                "description": "問題を解いて理解度を確認します。",
-            },
-        ]
-
+    topic = params["student_topic"]
+    count = guidance["task_count"]
+    minutes = guidance["target_minutes"]
+    settings = guidance["settings"]
+    task_titles = [f"{topic}の確認", "例題", "確認問題", "ふりかえり"]
+    if settings["difficulty"] <= 2:
+        task_titles = [f"{topic}の基本を確認", "やさしい例題", "基本の確認問題", "要点のふりかえり"]
+    elif settings["difficulty"] >= 4:
+        task_titles = [f"{topic}の基本を振り返る", "少し考える例題", "応用問題に挑戦", "考え方のふりかえり"]
+    description = f"{guidance['difficulty']}。{guidance['practice']}。{guidance['support']}。"
+    if settings["supportLevel"] >= 4:
+        description += "まず教科書の例を一つ読み、同じ手順で一問試しましょう。困ったら例と自分の取り組みを見比べ、分からない所に印をつけるだけでも大丈夫です。"
+    tasks = [
+        {
+            "order": index + 1,
+            "title": task_titles[index],
+            "minutes": minutes // count + (minutes % count if index == count - 1 else 0),
+            "description": description,
+        }
+        for index in range(count)
+    ]
     return {
         "subject": subject,
-        "title": f"{student_topic}の復習",
+        "title": f"{topic}の復習",
         "total_minutes": sum(task["minutes"] for task in tasks),
-        "reason": "今日使える時間に合わせて、今取り組んでいる単元を確認するプランです。",
+        "reason": "今日使える時間と先生の設定に合わせて、今取り組んでいる単元を確認するプランです。",
         "tasks": tasks,
     }

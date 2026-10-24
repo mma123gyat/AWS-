@@ -19,6 +19,12 @@ export interface AiParameters {
   supportLevel: number;
 }
 
+export interface AiParameterSettings {
+  studentId: string;
+  params: AiParameters;
+  updatedAt: string | null;
+}
+
 export interface SchoolProgressFormInput {
   subjectId: string;
   unitName: string;
