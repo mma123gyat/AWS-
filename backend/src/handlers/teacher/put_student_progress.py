@@ -14,7 +14,7 @@ def handler(event: dict, context) -> dict:
     user = get_authenticated_user(event)
     require_role(user, "TEACHER")
 
-    student_id = event.get("pathParameters", {}).get("studentId")
+    student_id = (event.get("pathParameters") or {}).get("studentId")
     if not student_id:
         raise ValidationError("studentIdは必須です。")
 
@@ -28,7 +28,7 @@ def handler(event: dict, context) -> dict:
 
     try:
         payload = json.loads(event.get("body") or "{}")
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
         raise ValidationError("リクエストの形式が不正です。")
 
     validated = validate_student_progress_input(payload)
