@@ -6,7 +6,7 @@ from src.models.sharing_settings import read_settings
 from src.repositories.messages_repository import put_shared_message
 from src.services.sharing_settings_service import conditional_failure, resolve_student
 from src.utils.auth_context import get_authenticated_user, require_role
-from src.utils.errors import ForbiddenError, ValidationError
+from src.utils.errors import ConflictError, ForbiddenError, ValidationError
 from src.utils.handler_wrapper import lambda_handler
 from src.utils.response import success
 
@@ -30,6 +30,13 @@ def handler(event: dict, context) -> dict:
 
     if not isinstance(payload, dict) or not isinstance(payload.get("body"), str):
         raise ValidationError("メッセージを入力してください。")
+    displayed_student_id = payload.get("studentId")
+    if not isinstance(displayed_student_id, str) or not displayed_student_id.strip():
+        raise ValidationError("送信先の確認情報がありません。サイトを更新してから送信してください。")
+    # This ID only asserts the report the sender saw. Authorization and the
+    # write target always come from the server-resolved, current membership.
+    if displayed_student_id != student["user_id"]:
+        raise ConflictError("送信先の生徒が変更されました。再読み込みして確認してください。")
     body = payload["body"].strip()
     if not body:
         raise ValidationError("メッセージを入力してください。")

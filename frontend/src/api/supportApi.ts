@@ -24,12 +24,14 @@ export async function getSupportReport(): Promise<ApiSupportReport> {
 
 export function sendSupportMessage(payload: PostSupportMessageRequest): Promise<ApiMessageItem> {
   if (USE_MOCK) {
-    if (!getMockSharing('SUPPORT').canSendMessage) return Promise.reject(new ApiError('FORBIDDEN', 'メッセージの共有が停止されています。', 403));
+    const snapshot = getMockSharing('SUPPORT');
+    if (!snapshot.canSendMessage) return Promise.reject(new ApiError('FORBIDDEN', 'メッセージの共有が停止されています。', 403));
+    if (payload.studentId !== snapshot.studentId) return Promise.reject(new ApiError('CONFLICT', '送信先の生徒が変更されました。再読み込みして確認してください。', 409));
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
     const message: ApiMessageItem = {
       message_id: id,
-      student_id: mockSupportReport.studentId,
+      student_id: snapshot.studentId,
       sort_key: `${createdAt}#${id}`,
       sender_user_id: 'mock-support-1',
       sender_role: 'SUPPORT',

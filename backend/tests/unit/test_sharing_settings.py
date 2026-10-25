@@ -162,7 +162,7 @@ def test_all_off_skips_sensitive_queries_and_does_not_report_fake_zeros(setup, m
     for key in ['recentStudyMinutes', 'recentRecordCount', 'subjectProgresses', 'supportNeededSubjects']:
         assert support[key] is None
     assert not support['canSendMessage']
-    assert post_message.handler(event('SUPPORT', {'body': 'blocked'}), None)['statusCode'] == 403
+    assert post_message.handler(event('SUPPORT', {'studentId': STUDENT_ID, 'body': 'blocked'}), None)['statusCode'] == 403
     assert messages_repository.list_messages_by_student(STUDENT_ID) == []
 
 
@@ -180,11 +180,11 @@ def test_activity_reason_does_not_leak_when_only_progress_is_shared(setup, monke
 
 @pytest.mark.parametrize('side', ['parent', 'support'])
 def test_either_message_flag_blocks_send_and_old_messages_are_retained(setup, side):
-    assert post_message.handler(event('SUPPORT', {'body': 'retained'}), None)['statusCode'] == 200
+    assert post_message.handler(event('SUPPORT', {'studentId': STUDENT_ID, 'body': 'retained'}), None)['statusCode'] == 200
     settings = copy.deepcopy(DEFAULT_SETTINGS)
     settings[side]['messages'] = False
     save(settings)
-    assert post_message.handler(event('SUPPORT', {'body': 'blocked'}), None)['statusCode'] == 403
+    assert post_message.handler(event('SUPPORT', {'studentId': STUDENT_ID, 'body': 'blocked'}), None)['statusCode'] == 403
     assert len(messages_repository.list_messages_by_student(STUDENT_ID)) == 1
     save(DEFAULT_SETTINGS, 1)
     assert data(get_dashboard.handler(event('PARENT'), None))['messages'][0]['body'] == 'retained'
@@ -204,11 +204,11 @@ def test_permission_change_between_read_and_send_prevents_atomic_message_write(s
             users_repository.update_user_fields('support', **({'linked_student_id': 'other-student'} if change == 'link' else {'role': 'PARENT'}))
         return original(student, actor, text)
     monkeypatch.setattr(post_message, 'put_shared_message', changed)
-    assert post_message.handler(event('SUPPORT', {'body': 'blocked'}), None)['statusCode'] == 403
+    assert post_message.handler(event('SUPPORT', {'studentId': STUDENT_ID, 'body': 'blocked'}), None)['statusCode'] == 403
     assert messages_repository.list_messages_by_student(STUDENT_ID) == []
 
 
-@pytest.mark.parametrize('payload', [[], None, {'body': 1}, {'body': ' '}, {'body': 'a' * 1001}])
+@pytest.mark.parametrize('payload', [[], None, {'studentId': STUDENT_ID, 'body': 1}, {'studentId': STUDENT_ID, 'body': ' '}, {'studentId': STUDENT_ID, 'body': 'a' * 1001}])
 def test_invalid_messages_never_write(setup, payload):
     assert post_message.handler(event('SUPPORT', payload), None)['statusCode'] == 400
     assert messages_repository.list_messages_by_student(STUDENT_ID) == []

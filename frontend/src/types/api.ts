@@ -119,5 +119,7 @@ export interface ApiSupportReport {
 
 /** POST /support/me/messages のリクエストボディ */
 export interface PostSupportMessageRequest {
+  /** The displayed report's student; the server verifies current membership. */
+  studentId: string;
   body: string;
 }
