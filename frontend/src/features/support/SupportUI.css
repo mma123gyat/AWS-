@@ -1,0 +1,9 @@
+.support-portal .portal-content { max-width: 1168px; }
+
+@media print {
+  :root:has(.support-portal) { background: white; }
+  .support-portal .portal-header,
+  .support-portal .skip-link { display: none; }
+  .support-portal .portal-shell { min-height: 0; background: white; }
+  .support-portal .portal-content { max-width: none; padding: 0; }
+}

@@ -1,50 +1,112 @@
-.support-report-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 20px;
-}
+.support-report { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; color: #283e5b; }
+.support-report :is(h1, h2, h3, p, th, td, li, dd) { overflow-wrap: anywhere; }
+.support-report h1 { margin: .5rem 0 .8rem; }
+.support-report h2 { font-size: 1rem; font-weight: 700; }
+.support-report-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px 24px; }
+.support-report-header > div:first-child { flex: 1 1 26rem; min-width: 0; }
+.support-intro { max-width: 64ch; color: #607087; font-size: .9rem; line-height: 1.9; }
+.support-report-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+.support-report-actions button { font-size: .85rem; }
+.support-report .support-report-print-button { color: #2c57bf; background: #edf2ff; border-color: #d2def8; }
+.support-report .support-report-print-button:hover:not(:disabled) { background: #e2eaff; }
+.support-student-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px; padding: 24px 28px; border: 1px solid #d6e3fa; border-radius: 18px; background: #eaf0fc; min-width: 0; }
+.support-student-header > div { min-width: 0; }
+.support-student-header h2 { margin: 8px 0 12px; font-size: 1.15rem; }
+.support-student-header p { color: #536987; font-size: .75rem; line-height: 1.9; }
+.support-link { display: inline-flex; align-items: center; min-height: 36px; color: #2c57bf; font-size: .85rem; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.support-card { padding: 26px; min-width: 0; background: white; border: 1px solid #dce5f1; border-radius: 18px; }
+.support-section-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.support-caption { margin-bottom: 6px; color: #607087; font-size: .72rem; font-weight: 600; }
+.support-pill { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; background: #f0f4fa; color: #536987; font-size: .7rem; }
+.support-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 20px; }
+.support-metrics > div { padding: 20px; background: #f7f9ff; border: 1px solid #e0e8fa; border-radius: 12px; }
+.support-metrics dt { color: #536987; font-size: .8rem; }
+.support-metrics dd { margin: 12px 0 0; color: #526780; font-size: .8rem; }
+.support-metrics strong { color: #2e527e; font-size: 2rem; line-height: 1.3; }
+.support-note { color: #607087; font-size: .76rem; line-height: 1.9; }
+.support-attendance { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 24px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e7edf6; font-size: .8rem; }
+.support-attendance span { font-weight: 600; }
+.support-attendance p { color: #607087; }
+.support-empty { margin: 16px 0; padding: 18px; border-radius: 10px; background: #f6f8fc; color: #526780; font-size: .85rem; line-height: 1.9; }
+.support-private { display: grid; justify-items: start; gap: 14px; }
+.support-private p:not(.support-note) { color: #526780; font-size: .9rem; line-height: 1.8; }
+.support-report-table-container { overflow-x: auto; margin: 20px 0; border: 1px solid #e1e8f2; border-radius: 12px; }
+.support-report-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: .85rem; }
+.support-report-table th, .support-report-table td { padding: 16px; text-align: left; vertical-align: top; }
+.support-report-table thead { background: #f5f7fb; color: #536987; font-size: .75rem; }
+.support-report-table th:nth-child(1) { width: 18%; }
+.support-report-table th:nth-child(2) { width: 13%; }
+.support-report-table th:nth-child(3) { width: 18%; }
+.support-report-table tbody tr { border-top: 1px solid #e7edf6; }
+.support-report-table tbody th { font-weight: 600; }
+.support-understanding { white-space: nowrap; font-weight: 700; color: #2e527e; }
+.support-status { display: inline-flex; padding: 4px 8px; border-radius: 7px; color: #526780; background: #f0f4fa; font-size: .72rem; }
+.support-reasons { padding-left: 1.1em; list-style: disc; color: #526780; font-size: .78rem; line-height: 1.8; }
+.support-reasons li + li { margin-top: 6px; }
+.support-subject-cards { display: none; }
+.support-criteria { margin-top: 18px; padding-top: 16px; border-top: 1px solid #e7edf6; }
+.support-report-notice { color: #607087; font-size: .75rem; line-height: 1.9; }
+.support-contact-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+.support-message-form { display: grid; gap: 14px; margin: 0; }
+.support-message-recipient { color: #526780; font-size: .85rem; }
+.support-message-form label { margin-top: 2px; font-size: .8rem; }
+.support-message-form textarea { min-height: 140px; color: #283e5b; font-size: .875rem; line-height: 1.9; }
+.support-message-form textarea::placeholder { color: #718097; }
+.support-message-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.support-message-footer button { font-size: .85rem; }
+.support-invalid-count { color: #9b2727; font-size: .8rem; }
+.support-message-form :is(.success, .error) { margin-top: 0; font-size: .85rem; }
+.support-sharing-card dl { margin: 20px 0; }
+.support-sharing-card dl > div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 0; border-bottom: 1px solid #e7edf6; font-size: .78rem; }
+.support-sharing-card dt { color: #607087; }
+.support-sharing-card dd { font-weight: 600; }
+.support-sharing-card .support-link { margin: 10px 0 16px; }
 
-.support-report-header .support-report-title {
-  flex: 1 1 18rem;
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
+@media (max-width: 800px) {
+  .support-contact-grid { grid-template-columns: minmax(0, 1fr); }
 }
-
-.support-report .support-report-print-button {
-  flex: 0 0 auto;
-  width: auto;
-  min-height: 40px;
-  max-width: 100%;
-  margin: 0;
-  padding: 8px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: white;
-  color: #43536b;
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 600;
+@media (max-width: 600px) {
+  .support-report { gap: 18px; }
+  .support-card { padding: 20px 18px; }
+  .support-student-header { padding: 22px 20px; }
+  .support-report h1 { font-size: 1.5rem; }
+  .support-metrics { gap: 10px; }
+  .support-metrics > div { padding: 16px 12px; }
+  .support-metrics dt { font-size: .73rem; }
+  .support-metrics strong { font-size: 1.8rem; }
+  .support-report-table-container { display: none; }
+  .support-subject-cards { display: grid; gap: 12px; margin-top: 20px; list-style: none; padding: 0; }
+  .support-subject-cards > li { padding: 18px 16px; border: 1px solid #e1e8f2; border-radius: 12px; }
+  .support-subject-cards .support-section-heading { margin-bottom: 14px; }
+  .support-subject-cards h3 { font-size: .9rem; font-weight: 600; }
+  .support-mobile-understanding { margin-bottom: 16px; color: #526780; font-size: .8rem; }
+  .support-mobile-understanding strong { margin-left: 10px; font-size: 1rem; }
 }
-
-.support-report .support-report-print-button:hover {
-  background: #f1f5f9;
-}
-
 @media print {
-  /* Override the shared form display rule as well as utility-layer styles. */
+  @page { size: A4 portrait; margin: 14mm; }
+  .support-report { display: block; color: #172a41; font-size: 10pt; }
+  .support-report .support-report-actions,
+  .support-report .support-intro,
+  .support-report .support-screen-only,
   .support-report form,
-  .support-report .support-report-print-button {
-    display: none;
-  }
-
-  .support-report .support-report-table-container {
-    overflow: visible;
-  }
-
-  .support-report .support-report-table {
-    min-width: 0;
-  }
+  .support-report .support-subject-cards { display: none; }
+  .support-report-header { display: block; margin-bottom: 5mm; }
+  .support-report h1 { margin: 2mm 0 3mm; font-size: 18pt; }
+  .support-report h2 { font-size: 11pt; }
+  .support-report .support-student-header { display: block; padding: 4mm; margin-bottom: 5mm; background: white; }
+  .support-report .support-student-header h2 { margin: 1.5mm 0 2mm; font-size: 12pt; }
+  .support-report .support-student-header p { font-size: 8pt; line-height: 1.6; }
+  .support-report .support-card { padding: 4mm; margin-bottom: 5mm; border-radius: 2mm; }
+  .support-report .support-section-heading { margin-bottom: 3mm; }
+  .support-report .support-metrics { margin-bottom: 3mm; }
+  .support-report .support-metrics > div { padding: 3mm; }
+  .support-report .support-metrics strong { font-size: 20pt; }
+  .support-report .support-attendance { margin-top: 3mm; padding-top: 2mm; }
+  .support-report .support-report-table-container { display: block; overflow: visible; margin: 3mm 0; }
+  .support-report .support-report-table { width: 100%; min-width: 0; font-size: 9pt; }
+  .support-report .support-report-table th, .support-report .support-report-table td { padding: 2mm 2.5mm; }
+  .support-report thead { display: table-header-group; }
+  .support-report :is(tr, .support-student-header, .support-metrics, .support-section-heading, .support-criteria, .support-report-notice) { break-inside: avoid; }
+  .support-report .support-criteria { margin-top: 3mm; padding-top: 2mm; }
+  .support-report .support-report-notice { margin-top: 4mm; font-size: 8pt; }
 }
