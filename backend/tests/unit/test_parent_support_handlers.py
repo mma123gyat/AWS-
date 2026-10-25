@@ -165,7 +165,7 @@ def test_support_post_message_persists_and_is_visible_to_parent(tables):
     )
 
     event = _event("sub-support", "[SUPPORT]")
-    event["body"] = json.dumps({"body": "数学の宿題に継続して取り組めています。"})
+    event["body"] = json.dumps({"studentId": STUDENT_ID, "body": "数学の宿題に継続して取り組めています。"})
 
     result = support_post_message.handler(event, None)
 
@@ -182,7 +182,7 @@ def test_support_post_message_rejects_empty_body(tables):
     )
 
     event = _event("sub-support", "[SUPPORT]")
-    event["body"] = json.dumps({"body": "   "})
+    event["body"] = json.dumps({"studentId": STUDENT_ID, "body": "   "})
 
     result = support_post_message.handler(event, None)
 
