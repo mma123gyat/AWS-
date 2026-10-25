@@ -1,3 +1,4 @@
+import { ApiError } from '../../../api/client';
 import { useState, type FormEvent } from 'react';
 import type { CurriculumStatus } from '../../../types/api';
 import type { SchoolProgressFormInput } from '../../../types/teacher';
@@ -30,14 +31,17 @@ export function SchoolProgressForm({
     textbookPage: '',
   });
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
+    setError('');
     try {
       await onSubmit(form);
       setStatus('success');
-    } catch {
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '登録に失敗しました。もう一度お試しください。');
       setStatus('error');
     }
   };
@@ -67,12 +71,14 @@ export function SchoolProgressForm({
         </label>
         <input
           id="unitName"
+          aria-describedby="unitName-hint"
           type="text"
           required
           value={form.unitName}
           onChange={(e) => setForm((prev) => ({ ...prev, unitName: e.target.value }))}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
+        <p id="unitName-hint" className="text-xs text-gray-500">単元名は200文字以内で入力してください。</p>
       </div>
       <div>
         <label htmlFor="status" className="mb-1 block text-sm font-medium text-gray-700">
@@ -99,12 +105,14 @@ export function SchoolProgressForm({
         </label>
         <input
           id="textbookPage"
+          aria-describedby="textbookPage-hint"
           type="text"
           value={form.textbookPage}
           onChange={(e) => setForm((prev) => ({ ...prev, textbookPage: e.target.value }))}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
           placeholder="例: p.42"
         />
+        <p id="textbookPage-hint" className="text-xs text-gray-500">任意・100文字以内で入力してください。</p>
       </div>
       <button
         type="submit"
@@ -116,7 +124,7 @@ export function SchoolProgressForm({
       {status === 'success' && (
         <p className="text-sm text-green-700">学校進度を登録しました。</p>
       )}
-      {status === 'error' && <p className="text-sm text-red-700">登録に失敗しました。</p>}
+      {status === 'error' && <p className="text-sm text-red-700" role="alert">{error}</p>}
     </form>
   );
 }

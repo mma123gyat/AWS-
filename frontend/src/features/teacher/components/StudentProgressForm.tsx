@@ -1,3 +1,4 @@
+import { ApiError } from '../../../api/client';
 import { useState, type FormEvent } from 'react';
 import type { CurriculumStatus, PutStudentProgressRequest } from '../../../types/api';
 
@@ -31,14 +32,17 @@ export function StudentProgressForm({
     understanding: 3,
   });
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setStatus('submitting');
+    setError('');
     try {
       await onSubmit(form);
       setStatus('success');
-    } catch {
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : '登録に失敗しました。もう一度お試しください。');
       setStatus('error');
     }
   };
@@ -68,12 +72,14 @@ export function StudentProgressForm({
         </label>
         <input
           id="studentUnitName"
+          aria-describedby="studentUnitName-hint"
           type="text"
           required
           value={form.unitName}
           onChange={(e) => setForm((prev) => ({ ...prev, unitName: e.target.value }))}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
+        <p id="studentUnitName-hint" className="text-xs text-gray-500">単元名は200文字以内で入力してください。</p>
       </div>
       <div>
         <label htmlFor="studentStatus" className="mb-1 block text-sm font-medium text-gray-700">
@@ -123,7 +129,7 @@ export function StudentProgressForm({
       {status === 'success' && (
         <p className="text-sm text-green-700">生徒の現在地を登録しました。</p>
       )}
-      {status === 'error' && <p className="text-sm text-red-700">登録に失敗しました。</p>}
+      {status === 'error' && <p className="text-sm text-red-700" role="alert">{error}</p>}
     </form>
   );
 }
