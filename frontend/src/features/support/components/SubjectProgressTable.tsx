@@ -17,6 +17,6 @@ export function SubjectProgressTable({ subjects, supportNeeded }: { subjects: Ap
       </div>
       <ul className="support-subject-cards">{subjects.map(subject => <li key={subject.subjectId}><div className="support-section-heading"><h3>{subject.subjectName}</h3><span className="support-status">{statusLabel(subject.status)}</span></div><p className="support-mobile-understanding">理解度 <strong>{understandingLabel(subject.understanding)}</strong></p><p className="support-caption">確認のきっかけ</p><Notes reasons={reasonsBySubject.get(subject.subjectId) ?? []} understanding={subject.understanding} /></li>)}</ul>
     </> : <p className="support-empty">教科別の進み方は、まだ登録されていません。</p>}
-    <p className="support-note support-criteria">理解度1・2の記録などを確認のきっかけにしています。学習のまとめが共有されている場合は、取得範囲に直近7日間の学習記録がない教科も表示します。休む日や未記録の学習もあるため、本人のペースや状況とあわせて確認してください。</p>
+    <p className="support-note support-criteria">理解度1・2の記録などを確認のきっかけにしています。学習のまとめが共有されている場合は、直近7日間に学習記録がない教科も表示します。休む日や未記録の学習もあるため、本人のペースや状況とあわせて確認してください。</p>
   </section>;
 }

@@ -1,31 +1,14 @@
-from datetime import date, timedelta
-
 from src.repositories.student_progresses_repository import list_progresses_by_student
-from src.repositories.study_records_repository import list_records_by_student
 from src.repositories.subjects_repository import get_subject_by_id
 from src.models.sharing_settings import read_settings
 from src.services.sharing_settings_service import resolve_student
+from src.services.weekly_learning_service import load_learning_week
 from src.utils.auth_context import get_authenticated_user, require_role
-from src.utils.dates import jst_date_from_iso, today_jst
 from src.utils.handler_wrapper import lambda_handler
 from src.utils.response import success
 
-WINDOW_DAYS = 7
 # 1〜5スケールでこれ未満は「理解度が低い教科」として要支援候補にする(診断ではなく教育上の事実のみ)。
 LOW_UNDERSTANDING_THRESHOLD = 3
-
-
-def _recent_records(records: list[dict], today_str: str) -> list[dict]:
-    today = date.fromisoformat(today_str)
-    window_start = today - timedelta(days=WINDOW_DAYS - 1)
-    recent = []
-    for record in records:
-        study_date = jst_date_from_iso(record.get("completed_at"))
-        if study_date is None:
-            continue
-        if window_start <= study_date <= today:
-            recent.append(record)
-    return recent
 
 
 @lambda_handler("support.get_report")
@@ -37,11 +20,10 @@ def handler(event: dict, context) -> dict:
     student_id = student["user_id"]
     settings = read_settings(student)
     support = settings["support"]
-    today = today_jst()
-
     progresses = list_progresses_by_student(student_id) if support["subjectProgress"] else []
-    records = list_records_by_student(student_id, limit=50) if support["studySummary"] else []
-    recent = _recent_records(records, today)
+    week = load_learning_week(student_id) if support["studySummary"] else None
+    total_minutes = week.total_minutes() if week is not None else None
+    recent = week.records if week is not None else []
     recent_subject_ids = {r.get("subject_id") for r in recent if r.get("subject_id")}
 
     # 教科名はsubject_idごとに1回だけ取得する。
@@ -75,7 +57,7 @@ def handler(event: dict, context) -> dict:
         {
             "studentId": student_id,
             "studentName": student.get("name") if student else None,
-            "recentStudyMinutes": sum(int(r.get("actual_minutes") or 0) for r in recent) if support["studySummary"] else None,
+            "recentStudyMinutes": total_minutes,
             "recentRecordCount": len(recent) if support["studySummary"] else None,
             "subjectProgresses": [
                 {

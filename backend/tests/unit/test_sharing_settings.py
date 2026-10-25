@@ -152,7 +152,7 @@ def test_all_off_skips_sensitive_queries_and_does_not_report_fake_zeros(setup, m
     save(settings)
     def forbidden(*args, **kwargs):
         raise AssertionError('Shared data must not even be queried')
-    for module, names in [(get_dashboard, ['list_records_by_student', 'list_messages_by_student']), (get_report, ['list_records_by_student', 'list_progresses_by_student', 'get_subject_by_id'])]:
+    for module, names in [(get_dashboard, ['load_learning_week', 'list_messages_by_student']), (get_report, ['load_learning_week', 'list_progresses_by_student', 'get_subject_by_id'])]:
         for name in names:
             monkeypatch.setattr(module, name, forbidden)
     parent = data(get_dashboard.handler(event('PARENT'), None))
@@ -170,7 +170,7 @@ def test_activity_reason_does_not_leak_when_only_progress_is_shared(setup, monke
     settings = copy.deepcopy(DEFAULT_SETTINGS)
     settings['support']['studySummary'] = False
     save(settings)
-    monkeypatch.setattr(get_report, 'list_records_by_student', lambda *a, **kw: pytest.fail('records are private'))
+    monkeypatch.setattr(get_report, 'load_learning_week', lambda *a, **kw: pytest.fail('records are private'))
     monkeypatch.setattr(get_report, 'list_progresses_by_student', lambda _: [{'subject_id': 'math', 'understanding': 2}])
     monkeypatch.setattr(get_report, 'get_subject_by_id', lambda _: {'name': '数学'})
     report = data(get_report.handler(event('SUPPORT'), None))

@@ -35,7 +35,7 @@ def compute_badges(
     records: list[dict[str, Any]],
     today_str: str,
 ) -> list[dict[str, Any]]:
-    """records: StudyRecordsのリスト(study_records_repository.list_records_by_studentの戻り値)。
+    """records: 対象期間に取得したStudyRecordsのリスト。
     today_str: "YYYY-MM-DD"(today_jst()の戻り値)。
 
     戻り値: [{"id": str, "label": str, "earned": bool}, ...] (常に全種類を返し、
