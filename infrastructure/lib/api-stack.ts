@@ -95,6 +95,10 @@ export class ApiStack extends cdk.Stack {
     // /teacher
     const teacher = this.api.root.addResource('teacher');
 
+    const getTeacherMeFn = createFunction('GetTeacherMeFn', 'src.handlers.teacher.get_me.handler');
+    props.schoolClassesTable.grantReadData(getTeacherMeFn);
+    teacher.addResource('me').addMethod('GET', new apigateway.LambdaIntegration(getTeacherMeFn), authorizedMethodOptions);
+
     // /teacher/classes/{classId}/progress
     const classes = teacher.addResource('classes');
     const classItem = classes.addResource('{classId}');
@@ -105,6 +109,9 @@ export class ApiStack extends cdk.Stack {
       'src.handlers.teacher.put_class_progress.handler',
     );
     props.curriculumsTable.grantReadWriteData(putClassProgressFn);
+    putClassProgressFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:ConditionCheckItem'], resources: [props.usersTable.tableArn],
+    }));
     classProgress.addMethod(
       'PUT',
       new apigateway.LambdaIntegration(putClassProgressFn),

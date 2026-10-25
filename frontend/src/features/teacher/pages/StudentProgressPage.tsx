@@ -16,7 +16,7 @@ export function StudentProgressPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const location = useLocation();
   const studentName = (location.state as LocationState | null)?.name;
-  const classId = useCurrentTeacherClassId();
+  const { state: teacherClass, refresh: refreshTeacherClass } = useCurrentTeacherClassId();
 
   if (!studentId) {
     return <ErrorState message="生徒IDが指定されていません。" />;
@@ -38,11 +38,15 @@ export function StudentProgressPage() {
         <section className="teacher-panel teacher-settings-card">
           <h2>学校の授業の現在地</h2>
           <p>担当クラスで進めている単元と教科書ページを登録します。</p>
-          <SchoolProgressForm
-            onSubmit={(input) =>
-              putClassProgress(classId, input).then(() => undefined)
-            }
-          />
+          {teacherClass.status === 'loading' && <p role="status">担当クラスを確認しています…</p>}
+          {teacherClass.status === 'error' && <ErrorState message={teacherClass.message} />}
+          {teacherClass.status === 'success' && <>
+            <p><strong>登録先：{teacherClass.data.className ?? '担当クラス'}</strong>（クラス全体に反映されます）</p>
+            <SchoolProgressForm key={teacherClass.data.classId}
+              onSubmit={input => putClassProgress(teacherClass.data.classId, input).then(() => undefined)} />
+          </>}
+          <button type="button" disabled={teacherClass.status === 'loading'} onClick={refreshTeacherClass}>担当クラスを再確認</button>
+          <p className="text-xs text-gray-500">再確認すると、学校進度の未保存の入力は破棄されます。</p>
         </section>
 
         <section className="teacher-panel teacher-settings-card">

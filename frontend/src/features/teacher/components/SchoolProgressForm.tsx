@@ -1,5 +1,5 @@
 import { ApiError } from '../../../api/client';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import type { CurriculumStatus } from '../../../types/api';
 import type { SchoolProgressFormInput } from '../../../types/teacher';
 
@@ -32,17 +32,28 @@ export function SchoolProgressForm({
   });
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
+  const [needsReload, setNeedsReload] = useState(false);
+  const submitting = useRef(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (submitting.current || needsReload) return;
+    submitting.current = true;
     setStatus('submitting');
     setError('');
     try {
       await onSubmit(form);
       setStatus('success');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '登録に失敗しました。もう一度お試しください。');
+      if (err instanceof ApiError && (err.statusCode === 403 || err.statusCode === 409)) {
+        setNeedsReload(true);
+        setError('担当クラスまたは権限が変更された可能性があります。「担当クラスを再確認」で確認してください。');
+      } else {
+        setError(err instanceof ApiError ? err.message : '登録に失敗しました。もう一度お試しください。');
+      }
       setStatus('error');
+    } finally {
+      submitting.current = false;
     }
   };
 
@@ -116,7 +127,7 @@ export function SchoolProgressForm({
       </div>
       <button
         type="submit"
-        disabled={status === 'submitting'}
+        disabled={status === 'submitting' || needsReload}
         className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
       >
         {status === 'submitting' ? '登録中...' : '学校進度を登録'}
