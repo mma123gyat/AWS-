@@ -1,5 +1,6 @@
 import {
   mockClassProgress,
+  mockTeacherProfile,
   mockStudentProgress,
   mockStudents,
   mockTeacherLearningLogs,
@@ -10,6 +11,7 @@ import type {
   ApiStudentProgressItem,
   ApiStudentSummary,
   ApiTeacherLearningLogs,
+  ApiTeacherProfile,
   PutClassProgressRequest,
   PutStudentProgressRequest,
 } from '../types/api';
@@ -17,8 +19,13 @@ import type { LearningHistory } from '../types/learningHistory';
 import { validateLearningHistory } from '../features/teacher/utils/learningHistory';
 import type { AiParameterSettings, AiParameters } from '../types/teacher';
 import { ApiError, apiGet, apiPut } from './client';
+import { readTeacherProfile } from '../features/teacher/utils/teacherProfile';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+export async function getTeacherProfile(): Promise<ApiTeacherProfile> {
+  return readTeacherProfile(USE_MOCK ? mockTeacherProfile : await apiGet<unknown>('/teacher/me'));
+}
 
 export function getStudents(): Promise<ApiStudentSummary[]> {
   if (USE_MOCK) return Promise.resolve(mockStudents);
@@ -69,8 +76,8 @@ export function putStudentProgress(
 }
 
 export function getClassProgress(classId: string): Promise<ApiCurriculumItem[]> {
-  if (USE_MOCK) return Promise.resolve(mockClassProgress);
-  return apiGet<ApiCurriculumItem[]>(`/teacher/classes/${classId}/progress`);
+  if (USE_MOCK) return classId === mockTeacherProfile.classId ? Promise.resolve(mockClassProgress) : Promise.reject(new ApiError('FORBIDDEN', '担当クラス以外の進度は確認できません。', 403));
+  return apiGet<ApiCurriculumItem[]>(`/teacher/classes/${encodeURIComponent(classId)}/progress`);
 }
 
 export function putClassProgress(
@@ -78,6 +85,7 @@ export function putClassProgress(
   payload: PutClassProgressRequest,
 ): Promise<ApiCurriculumItem> {
   if (USE_MOCK) {
+    if (classId !== mockTeacherProfile.classId) return Promise.reject(new ApiError('FORBIDDEN', '担当クラス以外の進度は編集できません。', 403));
     return Promise.resolve({
       curriculum_id: `${classId}#${payload.subjectId}`,
       class_id: classId,
@@ -89,7 +97,7 @@ export function putClassProgress(
       updated_at: new Date().toISOString(),
     });
   }
-  return apiPut<ApiCurriculumItem>(`/teacher/classes/${classId}/progress`, payload);
+  return apiPut<ApiCurriculumItem>(`/teacher/classes/${encodeURIComponent(classId)}/progress`, payload);
 }
 
 // Mock changes are local to this browser session, never a fallback for real API errors.

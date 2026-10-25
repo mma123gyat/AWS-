@@ -5,6 +5,12 @@ import type { StudyRecord } from './studyRecord';
 
 export type CurriculumStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 
+/** GET /teacher/me: the currently assigned class, resolved by the server. */
+export interface ApiTeacherProfile {
+  classId: string;
+  className: string | null;
+}
+
 /** GET /teacher/students のレスポンス要素(ハンドラ内で手動camelCase化済み) */
 export interface ApiStudentSummary {
   studentId: string;

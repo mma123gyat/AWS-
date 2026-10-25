@@ -5,9 +5,12 @@ import type {
   ApiStudentProgressItem,
   ApiStudentSummary,
   ApiTeacherLearningLogs,
+  ApiTeacherProfile,
 } from '../../../types/api';
 import type { LearningHistory, SubjectLearningHistory } from '../../../types/learningHistory';
 import type { StudyRecord } from '../../../types/studyRecord';
+
+export const mockTeacherProfile: ApiTeacherProfile = { classId: 'class-001', className: '2年1組' };
 
 export const mockStudents: ApiStudentSummary[] = [
   {
