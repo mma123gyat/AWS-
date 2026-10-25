@@ -11,6 +11,6 @@ export function LearningSummaryCard({ weeklyStudyMinutes, studiedDays, recordCou
       <div><dt>学習記録</dt><dd>{recordCount}<span>件</span></dd></div>
     </dl>
     {recordCount === 0 && <p className="parent-empty-note" role="status">この期間の学習記録はまだありません。記録が届いたら、ここに表示されます。</p>}
-    <p className="parent-footnote">最新50件の記録をもとに、今日を含む直近7日間を集計しています。未記録の学習や出欠は含みません。</p>
+    <p className="parent-footnote">日本時間の今日を含む直近7日間の全記録を集計しています。未記録の学習や出欠は含みません。</p>
   </section>;
 }

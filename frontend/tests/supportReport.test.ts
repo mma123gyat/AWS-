@@ -49,10 +49,10 @@ test('理解度を百分率に変換せず1〜5で表示し、未登録と0を�
   assert.equal(understandingLabel(4), '4 / 5'); assert.equal(understandingLabel(null), '未登録');
   assert.deepEqual(['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', null].map(value => statusLabel(value as never)), ['未着手', '進行中', '完了', '未登録']);
 });
-test('確認事項の表現は取得範囲と未登録を区別し、診断や出欠を推測しない', () => {
+test('確認事項の表現は直近7日間の記録と未登録を区別し、診断や出欠を推測しない', () => {
   assert.equal(reasonLabel('理解度が低い教科', 2), '理解度1・2の記録があります');
   assert.equal(reasonLabel('理解度が低い教科', null), '理解度の記録を確認してください');
-  assert.match(reasonLabel('最近学習記録が少ない教科', 4), /取得範囲/);
+  assert.equal(reasonLabel('最近学習記録が少ない教科', 4), '直近7日間に、この教科の学習記録がありません');
   assert.equal(reasonLabel('今後追加される理由', 4), '今後追加される理由');
 });
 test('対象期間は端末のタイムゾーンに依存せず、日本時間の今日を含む7日間', () => {

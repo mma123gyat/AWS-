@@ -1,55 +1,25 @@
-from datetime import UTC, datetime, time, timedelta, timezone
-from decimal import Decimal
-from typing import Any
+from datetime import UTC, datetime, timedelta
 
-from src.repositories.study_records_repository import list_records_in_period
-
-JST = timezone(timedelta(hours=9))
-MAX_SAFE_INTEGER = 9_007_199_254_740_991
-
-
-def _timestamp(value: Any) -> datetime | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-        # Legacy records without an offset are UTC, as in utils.dates.
-        return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
-    except ValueError:
-        return None
-
-
-def _integer(value: Any, maximum: int) -> int | None:
-    if isinstance(value, (int, Decimal)) and not isinstance(value, bool) and 1 <= value <= maximum and value == int(value):
-        return int(value)
-    return None
+from src.services.weekly_learning_service import (
+    JST, MAX_SAFE_INTEGER, load_learning_week, positive_integer,
+)
 
 
 def get_learning_history(student: dict, now: datetime | None = None) -> dict:
-    now = now or datetime.now(UTC)
-    end_date = now.astimezone(JST).date()
-    start_date = end_date - timedelta(days=6)
-    start = datetime.combine(start_date, time.min, tzinfo=JST).astimezone(UTC)
-    end = datetime.combine(end_date + timedelta(days=1), time.min, tzinfo=JST).astimezone(UTC)
+    week = load_learning_week(student["user_id"], now)
+    now, start_date, end_date = week.now, week.start_date, week.end_date
     dates = [(start_date + timedelta(days=index)).isoformat() for index in range(7)]
     days = {day: {"date": day, "minutes": 0, "recordCount": 0} for day in dates}
     subjects: dict[str | None, dict] = {}
-    records = list_records_in_period(student["user_id"], start, end)
-    unknown_dates = 0
-    dated = []
-    for record in records:
-        completed_at = _timestamp(record.get("completed_at"))
-        if completed_at is None:
-            unknown_dates += 1
-        elif start <= completed_at < end and completed_at <= now:
-            dated.append((completed_at, record.get("sort_key", ""), record))
+    unknown_dates = week.unassigned_record_count
+    dated = week.dated_records
 
     # Last record wins for a subject/day; never average understanding into a percentage.
     for completed_at, _, record in sorted(dated, key=lambda item: (item[0], item[1])):
         day = completed_at.astimezone(JST).date().isoformat()
         daily = days[day]
         daily["recordCount"] += 1
-        minutes = _integer(record.get("actual_minutes"), MAX_SAFE_INTEGER)
+        minutes = positive_integer(record.get("actual_minutes"), MAX_SAFE_INTEGER)
         if minutes is None or daily["minutes"] is None:
             daily["minutes"] = None
         else:
@@ -64,7 +34,7 @@ def get_learning_history(student: dict, now: datetime | None = None) -> dict:
             }
         point = subjects[subject_id]["days"][day]
         point.update(
-            understanding=_integer(record.get("understanding"), 5),
+            understanding=positive_integer(record.get("understanding"), 5),
             recordCount=point["recordCount"] + 1,
             unitName=record.get("unit_name") if isinstance(record.get("unit_name"), str) else None,
             completedAt=completed_at.isoformat(),

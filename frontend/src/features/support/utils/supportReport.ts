@@ -43,7 +43,7 @@ export function understandingLabel(value: number | null): string {
 }
 export function reasonLabel(reason: string, understanding: number | null): string {
   if (reason === '理解度が低い教科') return understanding !== null && understanding <= 2 ? '理解度1・2の記録があります' : '理解度の記録を確認してください';
-  if (reason === '最近学習記録が少ない教科') return '直近7日間の取得範囲に、この教科の学習記録がありません';
+  if (reason === '最近学習記録が少ない教科') return '直近7日間に、この教科の学習記録がありません';
   return reason;
 }
 export function messageLength(body: string): number { return Array.from(body.trim()).length; }
