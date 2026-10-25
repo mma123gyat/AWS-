@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test:sharing": "node --experimental-strip-types --test tests/sharingSettings.test.ts",
     "test:teacher-ui": "node --experimental-strip-types --test tests/studentFilters.test.ts tests/teacherAlerts.test.ts tests/learningLogs.test.ts tests/learningHistory.test.ts",
-    "test:parent-ui": "node --experimental-strip-types --test tests/parentDashboard.test.ts"
+    "test:parent-ui": "node --experimental-strip-types --test tests/parentDashboard.test.ts",
+    "test:support-ui": "node --experimental-strip-types --test tests/supportReport.test.ts"
   },
   "dependencies": {
     "aws-amplify": "^6.22.1",

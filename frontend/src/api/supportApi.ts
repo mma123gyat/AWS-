@@ -3,14 +3,15 @@ import type { ApiMessageItem, ApiSupportReport, PostSupportMessageRequest } from
 import { getMockSharing } from '../features/sharing/mockSharing';
 import { mockParentDashboard } from '../features/parent/mock/parentMockData';
 import { ApiError, apiGet, apiPost } from './client';
+import { readSupportReport } from '../features/support/utils/supportReport';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
-export function getSupportReport(): Promise<ApiSupportReport> {
+export async function getSupportReport(): Promise<ApiSupportReport> {
   if (USE_MOCK) {
     const snapshot = getMockSharing('SUPPORT');
     const settings = snapshot.settings.support;
-    return Promise.resolve({ ...mockSupportReport,
+    return readSupportReport({ ...mockSupportReport,
       recentStudyMinutes: settings.studySummary ? mockSupportReport.recentStudyMinutes : null,
       recentRecordCount: settings.studySummary ? mockSupportReport.recentRecordCount : null,
       subjectProgresses: settings.subjectProgress ? mockSupportReport.subjectProgresses : null,
@@ -18,7 +19,7 @@ export function getSupportReport(): Promise<ApiSupportReport> {
       canSendMessage: snapshot.canSendMessage,
     });
   }
-  return apiGet<ApiSupportReport>('/support/me/report');
+  return readSupportReport(await apiGet<unknown>('/support/me/report'));
 }
 
 export function sendSupportMessage(payload: PostSupportMessageRequest): Promise<ApiMessageItem> {

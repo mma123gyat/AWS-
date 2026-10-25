@@ -302,7 +302,7 @@ function App() {
         </Route>
 
         <Route element={<RequireRole role={session.role} allow="SUPPORT" fallback={homePath} />}>
-          <Route path="/support" element={<SupportLayout onLogout={session.refresh} />}>
+          <Route path="/support" element={<SupportLayout email={session.email} onLogout={session.refresh} />}>
             <Route index element={<Navigate to="report" replace />} />
             <Route path="report" element={<SupportReportPage />} />
             <Route path="sharing" element={<SharingSettingsPage />} />
