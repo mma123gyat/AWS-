@@ -12,7 +12,7 @@ from botocore.exceptions import ClientError
 from src.handlers.teacher import get_ai_parameters, put_ai_parameters
 from src.models.ai_parameters import DEFAULT_AI_PARAMETERS, read_ai_parameters
 from src.repositories import dynamodb_client, users_repository
-from src.services import bedrock_service, study_plan_service, teacher_ai_parameters_service
+from src.services import bedrock_service, study_plan_service, teacher_ai_parameters_service, teacher_class_service
 from src.services.rule_based_plan_service import generate_rule_based_plan
 from src.utils.auth_context import AuthenticatedUser
 from src.validators.ai_parameters_validator import validate_ai_parameters_input
@@ -31,7 +31,7 @@ def users(monkeypatch):
         'USERS_TABLE_NAME': 'Users',
     }.items():
         monkeypatch.setenv(key, value)
-    monkeypatch.setattr(teacher_ai_parameters_service, 'get_authenticated_user', lambda event: TEACHER)
+    monkeypatch.setattr(teacher_class_service, 'get_authenticated_user', lambda event: TEACHER)
     with mock_aws():
         dynamodb_client.get_resource.cache_clear()
         dynamodb_client.get_client.cache_clear()
@@ -41,7 +41,7 @@ def users(monkeypatch):
         )
         table.put_item(Item={'user_id': 'student-1', 'role': 'STUDENT', 'class_id': 'class-1', 'name': '生徒', 'cognito_sub': 'student-sub', 'linked_student_id': 'keep-link', 'created_at': 'original'})
         table.put_item(Item={'user_id': 'student-2', 'role': 'STUDENT', 'class_id': 'class-2'})
-        table.put_item(Item={'user_id': 'teacher-1', 'role': 'TEACHER', 'class_id': 'class-1'})
+        table.put_item(Item={'user_id': 'teacher-1', 'cognito_sub': 'teacher-sub', 'role': 'TEACHER', 'class_id': 'class-1'})
         yield table
         dynamodb_client.get_resource.cache_clear()
         dynamodb_client.get_client.cache_clear()
@@ -74,7 +74,7 @@ def test_defaults_do_not_write_and_saved_settings_round_trip_without_changing_us
 @pytest.mark.parametrize('handler', [get_ai_parameters.handler, put_ai_parameters.handler])
 def test_other_roles_cannot_read_or_write(users, monkeypatch, role, handler):
     caller = AuthenticatedUser('other', 'sub', '', '', role, 'class-1', None)
-    monkeypatch.setattr(teacher_ai_parameters_service, 'get_authenticated_user', lambda event: caller)
+    monkeypatch.setattr(teacher_class_service, 'get_authenticated_user', lambda event: caller)
     assert handler(event(), None)['statusCode'] == 403
     assert 'ai_parameters' not in users.get_item(Key={'user_id': 'student-1'})['Item']
 
@@ -87,7 +87,7 @@ def test_only_assigned_students_are_accessible(users, target, status, handler):
 
 def test_teacher_without_class_and_missing_path_are_rejected(users, monkeypatch):
     assert get_ai_parameters.handler({'pathParameters': None}, None)['statusCode'] == 400
-    monkeypatch.setattr(teacher_ai_parameters_service, 'get_authenticated_user', lambda event: AuthenticatedUser('t', 'sub', '', '', 'TEACHER', None, None))
+    users_repository.update_user_fields('teacher-1', class_id=None)
     assert put_ai_parameters.handler(event(), None)['statusCode'] == 400
 
 
@@ -105,9 +105,9 @@ def test_invalid_json_is_a_validation_error(users):
 
 def test_membership_change_during_save_cannot_update_another_class(users, monkeypatch):
     original = teacher_ai_parameters_service.put_ai_parameters
-    def moved(student_id, class_id, params):
+    def moved(student_id, class_id, params, **kwargs):
         users.update_item(Key={'user_id': student_id}, UpdateExpression='SET class_id = :new', ExpressionAttributeValues={':new': 'class-2'})
-        return original(student_id, class_id, params)
+        return original(student_id, class_id, params, **kwargs)
     monkeypatch.setattr(teacher_ai_parameters_service, 'put_ai_parameters', moved)
     assert put_ai_parameters.handler(event(), None)['statusCode'] == 409
     assert 'ai_parameters' not in users.get_item(Key={'user_id': 'student-1'})['Item']
@@ -116,8 +116,9 @@ def test_membership_change_during_save_cannot_update_another_class(users, monkey
 def test_removed_student_is_not_recreated_by_update(users):
     users.delete_item(Key={'user_id': 'student-1'})
     with pytest.raises(ClientError) as error:
-        users_repository.put_ai_parameters('student-1', 'class-1', CUSTOM)
-    assert error.value.response['Error']['Code'] == 'ConditionalCheckFailedException'
+        users_repository.put_ai_parameters('student-1', 'class-1', CUSTOM, teacher=users_repository.get_user_by_id('teacher-1'))
+    assert error.value.response['Error']['Code'] == 'TransactionCanceledException'
+    assert any(reason.get('Code') == 'ConditionalCheckFailed' for reason in error.value.response['CancellationReasons'])
     assert 'Item' not in users.get_item(Key={'user_id': 'student-1'})
 
 
@@ -182,7 +183,7 @@ def test_bedrock_over_teacher_budget_or_task_count_falls_back(monkeypatch):
 @pytest.mark.parametrize('handler', [get_ai_parameters.handler, put_ai_parameters.handler])
 def test_missing_authentication_is_unauthorized(users, monkeypatch, handler):
     from src.utils.auth_context import get_authenticated_user
-    monkeypatch.setattr(teacher_ai_parameters_service, 'get_authenticated_user', get_authenticated_user)
+    monkeypatch.setattr(teacher_class_service, 'get_authenticated_user', get_authenticated_user)
     assert handler(event(), None)['statusCode'] == 401
 
 

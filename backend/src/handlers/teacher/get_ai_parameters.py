@@ -1,4 +1,5 @@
-from src.services.teacher_ai_parameters_service import get_owned_student, settings_response
+from src.services.teacher_access_service import get_owned_student
+from src.services.teacher_ai_parameters_service import settings_response
 from src.utils.handler_wrapper import lambda_handler
 from src.utils.response import success
 

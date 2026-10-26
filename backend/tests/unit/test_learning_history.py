@@ -9,7 +9,7 @@ from moto import mock_aws
 
 from src.handlers.teacher import get_learning_history as history_handler
 from src.repositories import dynamodb_client, study_records_repository
-from src.services import learning_history_service
+from src.services import learning_history_service, teacher_class_service
 from src.utils.auth_context import AuthenticatedUser
 
 NOW = datetime(2026, 10, 24, 14, 0, tzinfo=UTC)
@@ -23,7 +23,7 @@ TEACHER = AuthenticatedUser('teacher-1', 'sub-t', '先生', '', 'TEACHER', 'clas
 def app(monkeypatch):
     for key, value in {'AWS_ACCESS_KEY_ID': 'testing', 'AWS_SECRET_ACCESS_KEY': 'testing', 'AWS_SESSION_TOKEN': 'testing', 'AWS_REGION': 'ap-northeast-1', 'AWS_DEFAULT_REGION': 'ap-northeast-1', 'USERS_TABLE_NAME': 'Users', 'STUDY_RECORDS_TABLE_NAME': 'StudyRecords'}.items():
         monkeypatch.setenv(key, value)
-    monkeypatch.setattr(history_handler, 'get_authenticated_user', lambda event: TEACHER)
+    monkeypatch.setattr(teacher_class_service, 'get_authenticated_user', lambda event: TEACHER)
     monkeypatch.setattr(history_handler, 'get_learning_history', lambda student: learning_history_service.get_learning_history(student, NOW))
     with mock_aws():
         dynamodb_client.get_resource.cache_clear()
@@ -32,7 +32,7 @@ def app(monkeypatch):
         users = resource.create_table(TableName='Users', KeySchema=[{'AttributeName': 'user_id', 'KeyType': 'HASH'}], AttributeDefinitions=[{'AttributeName': 'user_id', 'AttributeType': 'S'}], BillingMode='PAY_PER_REQUEST')
         users.put_item(Item=STUDENT)
         users.put_item(Item={'user_id': 'student-2', 'role': 'STUDENT', 'class_id': 'class-2'})
-        users.put_item(Item={'user_id': 'teacher-1', 'role': 'TEACHER', 'class_id': 'class-1'})
+        users.put_item(Item={'user_id': 'teacher-1', 'cognito_sub': 'sub-t', 'role': 'TEACHER', 'class_id': 'class-1'})
         records = resource.create_table(TableName='StudyRecords', KeySchema=[{'AttributeName': 'student_id', 'KeyType': 'HASH'}, {'AttributeName': 'sort_key', 'KeyType': 'RANGE'}], AttributeDefinitions=[{'AttributeName': 'student_id', 'AttributeType': 'S'}, {'AttributeName': 'sort_key', 'AttributeType': 'S'}], BillingMode='PAY_PER_REQUEST')
         yield users, records
         dynamodb_client.get_resource.cache_clear()
@@ -119,7 +119,7 @@ def test_query_continues_when_a_page_is_empty_but_has_a_cursor(monkeypatch):
 
 @pytest.mark.parametrize('role', ['STUDENT', 'PARENT', 'SUPPORT'])
 def test_non_teachers_cannot_read_history(app, monkeypatch, role):
-    monkeypatch.setattr(history_handler, 'get_authenticated_user', lambda event: AuthenticatedUser('other', 'sub', '', '', role, 'class-1', None))
+    monkeypatch.setattr(teacher_class_service, 'get_authenticated_user', lambda event: AuthenticatedUser('other', 'sub', '', '', role, 'class-1', None))
     assert history_handler.handler({'pathParameters': {'studentId': 'student-1'}}, None)['statusCode'] == 403
 
 
@@ -130,10 +130,10 @@ def test_teacher_cannot_access_another_class_or_non_student(app, student_id, sta
 
 def test_missing_authentication_class_and_path_are_rejected(app, monkeypatch):
     assert history_handler.handler({'pathParameters': None}, None)['statusCode'] == 400
-    monkeypatch.setattr(history_handler, 'get_authenticated_user', lambda event: AuthenticatedUser('t', 'sub', '', '', 'TEACHER', None, None))
+    app[0].update_item(Key={'user_id': 'teacher-1'}, UpdateExpression='SET class_id = :none', ExpressionAttributeValues={':none': None})
     assert history_handler.handler({'pathParameters': {'studentId': 'student-1'}}, None)['statusCode'] == 400
     from src.utils.auth_context import get_authenticated_user
-    monkeypatch.setattr(history_handler, 'get_authenticated_user', get_authenticated_user)
+    monkeypatch.setattr(teacher_class_service, 'get_authenticated_user', get_authenticated_user)
     assert history_handler.handler({}, None)['statusCode'] == 401
 
 
