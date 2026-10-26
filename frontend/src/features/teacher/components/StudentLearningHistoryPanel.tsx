@@ -1,8 +1,12 @@
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { LoadingState } from '../../../components/ui/LoadingState';
 import { useTeacherLearningHistory } from '../useTeacherLearningHistory';
-import { ProgressChart } from './ProgressChart';
+import { lazy } from 'react';
+import { AsyncScreen } from '../../../components/ui/AsyncScreen';
+
 import './StudentLearningHistoryPanel.css';
+
+const ProgressChart = lazy(() => import('./ProgressChart').then(module => ({ default: module.ProgressChart })));
 
 export function StudentLearningHistoryPanel({ studentId }: { studentId: string }) {
   const { state, refresh } = useTeacherLearningHistory(studentId);
@@ -14,7 +18,7 @@ export function StudentLearningHistoryPanel({ studentId }: { studentId: string }
       </div>
       {state.status === 'loading' && <div role="status"><LoadingState /></div>}
       {state.status === 'error' && <ErrorState message={state.message} />}
-      {state.status === 'success' && <ProgressChart history={state.data} />}
+      {state.status === 'success' && <AsyncScreen label="グラフを読み込んでいます…"><ProgressChart history={state.data} /></AsyncScreen>}
     </section>
   );
 }
