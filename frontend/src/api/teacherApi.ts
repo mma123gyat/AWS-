@@ -53,8 +53,10 @@ export async function getTeacherLearningHistory(studentId: string): Promise<Lear
 }
 
 export function getStudentProgress(studentId: string): Promise<ApiStudentProgressItem[]> {
-  if (USE_MOCK) return Promise.resolve(mockStudentProgress[studentId] ?? []);
-  return apiGet<ApiStudentProgressItem[]>(`/teacher/students/${studentId}/progress`);
+  if (USE_MOCK) return mockStudents.some(student => student.studentId === studentId)
+    ? Promise.resolve(structuredClone(mockStudentProgress[studentId] ?? []))
+    : Promise.reject(new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404));
+  return apiGet<ApiStudentProgressItem[]>(`/teacher/students/${encodeURIComponent(studentId)}/progress`);
 }
 
 export function putStudentProgress(
@@ -62,7 +64,8 @@ export function putStudentProgress(
   payload: PutStudentProgressRequest,
 ): Promise<ApiStudentProgressItem> {
   if (USE_MOCK) {
-    return Promise.resolve({
+    if (!mockStudents.some(student => student.studentId === studentId)) return Promise.reject(new ApiError('NOT_FOUND', '生徒が見つかりませんでした。', 404));
+    const item: ApiStudentProgressItem = {
       student_progress_id: `${studentId}#${payload.subjectId}`,
       student_id: studentId,
       subject_id: payload.subjectId,
@@ -70,13 +73,15 @@ export function putStudentProgress(
       understanding: payload.understanding,
       status: payload.status,
       updated_at: new Date().toISOString(),
-    });
+    };
+    mockStudentProgress[studentId] = [...(mockStudentProgress[studentId] ?? []).filter(row => row.subject_id !== item.subject_id), item];
+    return Promise.resolve(structuredClone(item));
   }
-  return apiPut<ApiStudentProgressItem>(`/teacher/students/${studentId}/progress`, payload);
+  return apiPut<ApiStudentProgressItem>(`/teacher/students/${encodeURIComponent(studentId)}/progress`, payload);
 }
 
 export function getClassProgress(classId: string): Promise<ApiCurriculumItem[]> {
-  if (USE_MOCK) return classId === mockTeacherProfile.classId ? Promise.resolve(mockClassProgress) : Promise.reject(new ApiError('FORBIDDEN', '担当クラス以外の進度は確認できません。', 403));
+  if (USE_MOCK) return classId === mockTeacherProfile.classId ? Promise.resolve(structuredClone(mockClassProgress)) : Promise.reject(new ApiError('FORBIDDEN', '担当クラス以外の進度は確認できません。', 403));
   return apiGet<ApiCurriculumItem[]>(`/teacher/classes/${encodeURIComponent(classId)}/progress`);
 }
 
@@ -86,7 +91,7 @@ export function putClassProgress(
 ): Promise<ApiCurriculumItem> {
   if (USE_MOCK) {
     if (classId !== mockTeacherProfile.classId) return Promise.reject(new ApiError('FORBIDDEN', '担当クラス以外の進度は編集できません。', 403));
-    return Promise.resolve({
+    const item: ApiCurriculumItem = {
       curriculum_id: `${classId}#${payload.subjectId}`,
       class_id: classId,
       subject_id: payload.subjectId,
@@ -95,7 +100,10 @@ export function putClassProgress(
       status: payload.status,
       updated_by: 'mock-teacher',
       updated_at: new Date().toISOString(),
-    });
+    };
+    const index = mockClassProgress.findIndex(row => row.subject_id === item.subject_id);
+    if (index < 0) mockClassProgress.push(item); else mockClassProgress[index] = item;
+    return Promise.resolve(structuredClone(item));
   }
   return apiPut<ApiCurriculumItem>(`/teacher/classes/${encodeURIComponent(classId)}/progress`, payload);
 }

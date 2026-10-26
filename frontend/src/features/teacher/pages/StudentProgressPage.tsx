@@ -1,5 +1,4 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { putClassProgress, putStudentProgress } from '../../../api/teacherApi';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { useCurrentTeacherClassId } from '../../../hooks/useCurrentTeacherClassId';
 import { TeacherPageHeader } from '../components/TeacherPageHeader';
@@ -42,8 +41,7 @@ export function StudentProgressPage() {
           {teacherClass.status === 'error' && <ErrorState message={teacherClass.message} />}
           {teacherClass.status === 'success' && <>
             <p><strong>登録先：{teacherClass.data.className ?? '担当クラス'}</strong>（クラス全体に反映されます）</p>
-            <SchoolProgressForm key={teacherClass.data.classId}
-              onSubmit={input => putClassProgress(teacherClass.data.classId, input).then(() => undefined)} />
+            <SchoolProgressForm key={teacherClass.data.classId} classId={teacherClass.data.classId} />
           </>}
           <button type="button" disabled={teacherClass.status === 'loading'} onClick={refreshTeacherClass}>担当クラスを再確認</button>
           <p className="text-xs text-gray-500">再確認すると、学校進度の未保存の入力は破棄されます。</p>
@@ -52,11 +50,7 @@ export function StudentProgressPage() {
         <section className="teacher-panel teacher-settings-card">
           <h2>生徒の学習の現在地</h2>
           <p>この生徒の単元と理解度を登録します。下の理解度は先生による設定です。</p>
-          <StudentProgressForm
-            onSubmit={(input) =>
-              putStudentProgress(studentId, input).then(() => undefined)
-            }
-          />
+          <StudentProgressForm key={studentId} studentId={studentId} />
         </section>
       </div>
     </div>
