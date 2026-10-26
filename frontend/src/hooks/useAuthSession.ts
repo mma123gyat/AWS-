@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
-export type Role = 'TEACHER' | 'STUDENT' | 'PARENT' | 'SUPPORT' | null;
+export type Role = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'PARENT' | 'SUPPORT' | null;
 export type SessionStatus = 'CHECKING' | 'SIGNED_OUT' | 'SIGNED_IN';
 
 export interface AuthSession {
@@ -18,6 +18,7 @@ function resolveRole(groupsClaim: unknown): Role {
     : typeof groupsClaim === 'string'
       ? [groupsClaim]
       : [];
+  if (groups.includes('ADMIN')) return 'ADMIN';
   if (groups.includes('TEACHER')) return 'TEACHER';
   if (groups.includes('STUDENT')) return 'STUDENT';
   if (groups.includes('PARENT')) return 'PARENT';

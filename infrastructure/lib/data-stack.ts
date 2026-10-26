@@ -8,6 +8,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
  * leaves no orphaned billable resources; revisit before a real production launch.
  */
 export class DataStack extends cdk.Stack {
+  public readonly classAuditTable: dynamodb.Table;
   public readonly invitationsTable: dynamodb.Table;
   public readonly usersTable: dynamodb.Table;
   public readonly schoolClassesTable: dynamodb.Table;
@@ -25,6 +26,11 @@ export class DataStack extends cdk.Stack {
 
     const removalPolicy = cdk.RemovalPolicy.DESTROY;
     const billingMode = dynamodb.BillingMode.PAY_PER_REQUEST;
+
+    this.classAuditTable = new dynamodb.Table(this, 'ClassAuditTable', {
+      tableName: 'ClassAudit', partitionKey: { name: 'audit_id', type: dynamodb.AttributeType.STRING },
+      billingMode, removalPolicy,
+    });
 
     this.invitationsTable = new dynamodb.Table(this, 'InvitationsTable', {
       tableName: 'Invitations', partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },

@@ -8,6 +8,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useAuthSession } from './hooks/useAuthSession'
 import type { Role, SessionStatus } from './hooks/useAuthSession'
 
+const ClassManagementPage = lazy(() => import('./features/admin/ClassManagementPage'))
 const StudyTimeForm = lazy(() => import('./StudyTimeForm'))
 const TeacherLayout = lazy(() => import('./features/teacher/TeacherLayout').then(module => ({ default: module.TeacherLayout })))
 const StudentListPage = lazy(() => import('./features/teacher/pages/StudentListPage').then(module => ({ default: module.StudentListPage })))
@@ -257,6 +258,8 @@ function RequireRole({ role, allow, fallback }: { role: Role; allow: Role; fallb
 
 function homePathFor(role: Role): string {
   switch (role) {
+    case 'ADMIN':
+      return '/admin/classes'
     case 'TEACHER':
       return '/teacher/dashboard'
     case 'PARENT':
@@ -307,6 +310,9 @@ function App() {
       >
         <Route path="/" element={<Navigate to={homePath} replace />} />
 
+        <Route element={<RequireRole role={session.role} allow="ADMIN" fallback={homePath} />}>
+          <Route path="/admin/classes" element={<AsyncScreen page><ClassManagementPage email={session.email} onLogout={session.refresh} /></AsyncScreen>} />
+        </Route>
         <Route element={<RequireRole role={session.role} allow="STUDENT" fallback={homePath} />}>
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
             <Route path="/condition" element={<AsyncScreen page><ConditionPage /></AsyncScreen>} />

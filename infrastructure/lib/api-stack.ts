@@ -11,6 +11,7 @@ export interface ApiStackProps extends cdk.StackProps {
   userPool: cognito.UserPool;
   usersTable: dynamodb.Table;
   invitationsTable: dynamodb.Table;
+  classAuditTable: dynamodb.Table;
   schoolClassesTable: dynamodb.Table;
   subjectsTable: dynamodb.Table;
   curriculumsTable: dynamodb.Table;
@@ -114,6 +115,29 @@ export class ApiStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     };
+
+    const admin = this.api.root.addResource('admin');
+    const adminClasses = admin.addResource('classes');
+    const adminClass = adminClasses.addResource('{classId}');
+    const assignment = admin.addResource('users').addResource('{userId}').addResource('class');
+    for (const [id, file, resource, method] of [
+      ['GetAdminClassesFn', 'get_classes', adminClasses, 'GET'],
+      ['PostAdminClassFn', 'post_class', adminClasses, 'POST'],
+      ['PutAdminClassFn', 'put_class', adminClass, 'PUT'],
+      ['PutAdminAssignmentFn', 'put_assignment', assignment, 'PUT'],
+    ] as const) {
+      const fn = createFunction(id, `src.handlers.admin.${file}.handler`);
+      fn.addEnvironment('CLASS_AUDIT_TABLE_NAME', props.classAuditTable.tableName);
+      props.schoolClassesTable.grantReadData(fn);
+      if (method === 'GET') {
+        props.classAuditTable.grantReadData(fn);
+      } else {
+        fn.addToRolePolicy(new iam.PolicyStatement({ actions: ['dynamodb:PutItem'], resources: [props.classAuditTable.tableArn] }));
+        fn.addToRolePolicy(new iam.PolicyStatement({ actions: ['dynamodb:PutItem', 'dynamodb:UpdateItem'], resources: [props.schoolClassesTable.tableArn] }));
+        if (file === 'put_assignment') fn.addToRolePolicy(new iam.PolicyStatement({ actions: ['dynamodb:UpdateItem'], resources: [props.usersTable.tableArn] }));
+      }
+      resource.addMethod(method, new apigateway.LambdaIntegration(fn), authorizedMethodOptions);
+    }
 
     // /teacher
     const teacher = this.api.root.addResource('teacher');
