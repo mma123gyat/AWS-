@@ -1,29 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FetchState } from '../types/common';
 
-/** loading/success/errorの状態管理を統一するための汎用フック。 */
-export function useFetch<T>(fetcher: () => Promise<T>, deps: unknown[]): FetchState<T> {
-  const [state, setState] = useState<FetchState<T>>({ status: 'loading' });
+const LOADING = { status: 'loading' } as const;
+
+/** Use a stable fetcher. A different fetcher or refresh hides the old result immediately. */
+export function useFetch<T>(fetcher: () => Promise<T>) {
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{
+    fetcher: () => Promise<T>; attempt: number; state: FetchState<T>;
+  } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    setState({ status: 'loading' });
+    let active = true;
+    async function load() {
+      let state: FetchState<T>;
+      try {
+        state = { status: 'success', data: await fetcher() };
+      } catch (error) {
+        state = { status: 'error', message: error instanceof Error ? error.message : '通信エラーが発生しました。' };
+      }
+      if (active) setResult({ fetcher, attempt, state });
+    }
+    void load();
+    return () => { active = false; };
+  }, [fetcher, attempt]);
 
-    fetcher()
-      .then((data) => {
-        if (!cancelled) setState({ status: 'success', data });
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          const message = error instanceof Error ? error.message : '通信エラーが発生しました。';
-          setState({ status: 'error', message });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, deps);
-
-  return state;
+  const refetch = useCallback(() => setAttempt(value => value + 1), []);
+  const state = result?.fetcher === fetcher && result.attempt === attempt ? result.state : LOADING;
+  return { state, refetch };
 }
