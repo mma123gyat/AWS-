@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "test:history": "node --experimental-strip-types --test tests/learningHistory.test.ts",
     "test:alerts": "node --experimental-strip-types --test tests/teacherAlerts.test.ts",
     "test:logs": "node --experimental-strip-types --test tests/learningLogs.test.ts",
