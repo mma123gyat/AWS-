@@ -1,25 +1,27 @@
-import { useState } from 'react'
+import { lazy, useState } from 'react'
 import type { FormEvent } from 'react'
 import { signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import { PortalFrame } from './components/layout/PortalFrame'
-import StudyTimeForm from './StudyTimeForm'
+import { AsyncScreen } from './components/ui/AsyncScreen'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { TeacherLayout } from './features/teacher/TeacherLayout'
-import { StudentListPage } from './features/teacher/pages/StudentListPage'
-import { StudentProgressPage } from './features/teacher/pages/StudentProgressPage'
-import { TeacherDashboardPage } from './features/teacher/pages/TeacherDashboardPage'
-import { TeacherLearningLogsPage } from './features/teacher/pages/TeacherLearningLogsPage'
-import { TeacherAlertsPage } from './features/teacher/pages/TeacherAlertsPage'
-import { ParentLayout } from './features/parent/ParentLayout'
-import { ParentDashboardPage } from './features/parent/pages/ParentDashboardPage'
-import { SupportLayout } from './features/support/SupportLayout'
-import { SupportReportPage } from './features/support/pages/SupportReportPage'
-import { SharingSettingsPanel } from './features/sharing/SharingSettingsPanel'
-import { SharingSettingsPage } from './features/support/pages/SharingSettingsPage'
-import { StudentDashboardPage } from './features/student/pages/StudentDashboardPage'
 import { useAuthSession } from './hooks/useAuthSession'
 import type { Role, SessionStatus } from './hooks/useAuthSession'
+
+const StudyTimeForm = lazy(() => import('./StudyTimeForm'))
+const TeacherLayout = lazy(() => import('./features/teacher/TeacherLayout').then(module => ({ default: module.TeacherLayout })))
+const StudentListPage = lazy(() => import('./features/teacher/pages/StudentListPage').then(module => ({ default: module.StudentListPage })))
+const StudentProgressPage = lazy(() => import('./features/teacher/pages/StudentProgressPage').then(module => ({ default: module.StudentProgressPage })))
+const TeacherDashboardPage = lazy(() => import('./features/teacher/pages/TeacherDashboardPage').then(module => ({ default: module.TeacherDashboardPage })))
+const TeacherLearningLogsPage = lazy(() => import('./features/teacher/pages/TeacherLearningLogsPage').then(module => ({ default: module.TeacherLearningLogsPage })))
+const TeacherAlertsPage = lazy(() => import('./features/teacher/pages/TeacherAlertsPage').then(module => ({ default: module.TeacherAlertsPage })))
+const ParentLayout = lazy(() => import('./features/parent/ParentLayout').then(module => ({ default: module.ParentLayout })))
+const ParentDashboardPage = lazy(() => import('./features/parent/pages/ParentDashboardPage').then(module => ({ default: module.ParentDashboardPage })))
+const SupportLayout = lazy(() => import('./features/support/SupportLayout').then(module => ({ default: module.SupportLayout })))
+const SupportReportPage = lazy(() => import('./features/support/pages/SupportReportPage').then(module => ({ default: module.SupportReportPage })))
+const SharingSettingsPanel = lazy(() => import('./features/sharing/SharingSettingsPanel').then(module => ({ default: module.SharingSettingsPanel })))
+const SharingSettingsPage = lazy(() => import('./features/support/pages/SharingSettingsPage').then(module => ({ default: module.SharingSettingsPage })))
+const StudentDashboardPage = lazy(() => import('./features/student/pages/StudentDashboardPage').then(module => ({ default: module.StudentDashboardPage })))
 
 function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState('')
@@ -276,36 +278,36 @@ function App() {
 
         <Route element={<RequireRole role={session.role} allow="STUDENT" fallback={homePath} />}>
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
-            <Route path="/condition" element={<ConditionPage />} />
-            <Route path="/dashboard" element={<StudentDashboardPage />} />
-            <Route path="/sharing" element={<SharingSettingsPanel key={session.email} role="STUDENT" />} />
+            <Route path="/condition" element={<AsyncScreen page><ConditionPage /></AsyncScreen>} />
+            <Route path="/dashboard" element={<AsyncScreen page><StudentDashboardPage /></AsyncScreen>} />
+            <Route path="/sharing" element={<AsyncScreen page><SharingSettingsPanel key={session.email} role="STUDENT" /></AsyncScreen>} />
           </Route>
         </Route>
 
         <Route element={<RequireRole role={session.role} allow="TEACHER" fallback={homePath} />}>
-          <Route path="/teacher" element={<TeacherLayout onLogout={session.refresh} />}>
+          <Route path="/teacher" element={<AsyncScreen><TeacherLayout onLogout={session.refresh} /></AsyncScreen>}>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<TeacherDashboardPage />} />
-            <Route path="students" element={<StudentListPage />} />
-            <Route path="students/:studentId/progress" element={<StudentProgressPage />} />
-            <Route path="logs" element={<TeacherLearningLogsPage />} />
-            <Route path="alerts" element={<TeacherAlertsPage />} />
+            <Route path="dashboard" element={<AsyncScreen page><TeacherDashboardPage /></AsyncScreen>} />
+            <Route path="students" element={<AsyncScreen page><StudentListPage /></AsyncScreen>} />
+            <Route path="students/:studentId/progress" element={<AsyncScreen page><StudentProgressPage /></AsyncScreen>} />
+            <Route path="logs" element={<AsyncScreen page><TeacherLearningLogsPage /></AsyncScreen>} />
+            <Route path="alerts" element={<AsyncScreen page><TeacherAlertsPage /></AsyncScreen>} />
           </Route>
         </Route>
 
         <Route element={<RequireRole role={session.role} allow="PARENT" fallback={homePath} />}>
-          <Route path="/parent" element={<ParentLayout email={session.email} onLogout={session.refresh} />}>
+          <Route path="/parent" element={<AsyncScreen><ParentLayout email={session.email} onLogout={session.refresh} /></AsyncScreen>}>
             <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<ParentDashboardPage />} />
-            <Route path="sharing" element={<SharingSettingsPanel key={session.email} role="PARENT" />} />
+            <Route path="dashboard" element={<AsyncScreen page><ParentDashboardPage /></AsyncScreen>} />
+            <Route path="sharing" element={<AsyncScreen page><SharingSettingsPanel key={session.email} role="PARENT" /></AsyncScreen>} />
           </Route>
         </Route>
 
         <Route element={<RequireRole role={session.role} allow="SUPPORT" fallback={homePath} />}>
-          <Route path="/support" element={<SupportLayout email={session.email} onLogout={session.refresh} />}>
+          <Route path="/support" element={<AsyncScreen><SupportLayout email={session.email} onLogout={session.refresh} /></AsyncScreen>}>
             <Route index element={<Navigate to="report" replace />} />
-            <Route path="report" element={<SupportReportPage />} />
-            <Route path="sharing" element={<SharingSettingsPage />} />
+            <Route path="report" element={<AsyncScreen page><SupportReportPage /></AsyncScreen>} />
+            <Route path="sharing" element={<AsyncScreen page><SharingSettingsPage /></AsyncScreen>} />
           </Route>
         </Route>
       </Route>
