@@ -11,7 +11,7 @@ oxlint・Tailwind CSS・Lightning CSSのOS別パッケージも含めていま�
 ## 確認する内容
 
 - **Frontend checks**（Node.js 24）：ルートの`npm ci`、フロントのlint、
-  全単体テスト、ビルド、インフラのTypeScriptビルド。
+  全単体テスト、ビルド、インフラのTypeScriptビルド・単体テスト。
   lintは警告がある場合も失敗します。
 - **Backend unit tests**（Python 3.13）：開発用依存関係のインストールと
   `backend/tests/unit`の全テスト。
@@ -20,8 +20,9 @@ oxlint・Tailwind CSS・Lightning CSSのOS別パッケージも含めていま�
 モックする単体テストを実行します。AWSへのログイン、認証情報の登録、
 デプロイは不要です。CIで作ったフロントのビルド成果物は公開しません。
 
-インフラはコンパイルを確認します。CDKのsynth・diff・deployや、
-実環境でのログイン・画面操作はこのCIでは確認しません。
+インフラの単体テストは、CDKが生成するテンプレートのCORS設定と
+認証設定を確認します。AWSへのdiff・deployや、実環境でのログイン・
+画面操作はこのCIでは確認しません。
 
 ## ローカルでの確認（PowerShell・リポジトリのルート）
 
@@ -34,6 +35,7 @@ npm.cmd --prefix frontend run lint -- --deny-warnings
 npm.cmd --prefix frontend test
 npm.cmd --prefix frontend run build
 npm.cmd --prefix infrastructure run build
+npm.cmd --prefix infrastructure test -- --runInBand
 .\backend\.venv\Scripts\python.exe -m pytest backend/tests/unit -q
 git diff --check
 ```

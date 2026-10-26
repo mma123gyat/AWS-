@@ -16,7 +16,7 @@ def handler(event: dict, context) -> dict:
 
     try:
         payload = json.loads(event.get("body") or "{}")
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
         raise ValidationError("リクエストの形式が不正です。")
 
     available_minutes = validate_condition_input(payload)

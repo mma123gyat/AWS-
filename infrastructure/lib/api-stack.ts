@@ -83,6 +83,28 @@ export class ApiStack extends cdk.Stack {
       deployOptions: { stageName: 'dev' },
     });
 
+    // Authorizer and other gateway errors never reach our Lambda response
+    // wrapper. Include CORS here too, without overriding 401/403/429/etc.
+    for (const [id, type] of [
+      ['DefaultClientError', apigateway.ResponseType.DEFAULT_4XX],
+      ['DefaultServerError', apigateway.ResponseType.DEFAULT_5XX],
+    ] as const) {
+      this.api.addGatewayResponse(id, {
+        type,
+        responseHeaders: {
+          'Access-Control-Allow-Origin': "'*'",
+          'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+          'Access-Control-Allow-Methods': "'GET,POST,PUT,OPTIONS'",
+        },
+        templates: {
+          'application/json': JSON.stringify({
+            success: false,
+            error: { code: 'GATEWAY_ERROR', message: 'APIへの接続を処理できませんでした。時間をおいて再試行してください。' },
+          }),
+        },
+      });
+    }
+
     const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, 'CognitoAuthorizer', {
       cognitoUserPools: [props.userPool],
     });

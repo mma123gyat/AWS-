@@ -12,6 +12,9 @@ StudyRecords / StudyPlans / StudyTasks data.
 
 Usage (from backend/, with the venv active):
     python -m scripts.seed_users
+
+New accounts require SEED_<ROLE>_PASSWORD in the environment or private .env.
+Existing accounts retain their passwords; passwords are never printed.
 """
 
 import os
@@ -24,7 +27,7 @@ from src.repositories.school_classes_repository import put_class
 from src.repositories.subjects_repository import put_subject
 from src.repositories.users_repository import create_user, get_user_by_cognito_sub, update_user_fields
 
-load_dotenv(override=True)
+load_dotenv()
 
 CLASS_ID = "class-1"
 SUBJECTS = [
@@ -38,7 +41,21 @@ TEACHER_EMAIL = "teacher@example.com"
 STUDENT_EMAIL = "student@example.com"
 PARENT_EMAIL = "parent@example.com"
 SUPPORT_EMAIL = "support@example.com"
-DEMO_PASSWORD = "Passw0rd!2026"
+
+
+def _new_user_password(group: str) -> str:
+    key = f"SEED_{group}_PASSWORD"
+    password = os.environ.get(key, "")
+    # Match the CDK pool's minimum policy before creating an account, so
+    # missing/invalid configuration does not leave a half-created user.
+    if (
+        not 8 <= len(password) <= 256
+        or any(char.isspace() for char in password)
+        or not any("a" <= char <= "z" for char in password)
+        or not any("0" <= char <= "9" for char in password)
+    ):
+        raise ValueError(f"新規ユーザーの作成には{key}を非公開で設定してください（8〜256文字・小文字と数字を含む・空白なし）。")
+    return password
 
 
 def _sub_of(user: dict) -> str:
@@ -59,6 +76,7 @@ def _get_or_create_cognito_user(cognito_client, user_pool_id: str, email: str, n
         existing = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=email)
         sub = _sub_of(existing)
     except cognito_client.exceptions.UserNotFoundException:
+        password = _new_user_password(group)
         cognito_client.admin_create_user(
             UserPoolId=user_pool_id,
             Username=email,
@@ -72,7 +90,7 @@ def _get_or_create_cognito_user(cognito_client, user_pool_id: str, email: str, n
         cognito_client.admin_set_user_password(
             UserPoolId=user_pool_id,
             Username=email,
-            Password=DEMO_PASSWORD,
+            Password=password,
             Permanent=True,
         )
         user = cognito_client.admin_get_user(UserPoolId=user_pool_id, Username=email)
@@ -151,10 +169,10 @@ def main() -> None:
 
     print("Seed complete.")
     print(f"  class_id   = {CLASS_ID}")
-    print(f"  teacher_id = {teacher['user_id']}  login: {TEACHER_EMAIL} / {DEMO_PASSWORD}")
-    print(f"  student_id = {student_id}  login: {STUDENT_EMAIL} / {DEMO_PASSWORD}")
-    print(f"  parent_id  = {parent['user_id']}  login: {PARENT_EMAIL} / {DEMO_PASSWORD}  (linked_student_id={student_id})")
-    print(f"  support_id = {support['user_id']}  login: {SUPPORT_EMAIL} / {DEMO_PASSWORD}  (linked_student_id={student_id})")
+    print(f"  teacher_id = {teacher['user_id']}  login: {TEACHER_EMAIL}")
+    print(f"  student_id = {student_id}  login: {STUDENT_EMAIL}")
+    print(f"  parent_id  = {parent['user_id']}  login: {PARENT_EMAIL}  (linked_student_id={student_id})")
+    print(f"  support_id = {support['user_id']}  login: {SUPPORT_EMAIL}  (linked_student_id={student_id})")
 
 
 if __name__ == "__main__":
