@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 export type Role = 'TEACHER' | 'STUDENT' | 'PARENT' | 'SUPPORT' | null;
@@ -32,34 +32,41 @@ function resolveRole(groupsClaim: unknown): Role {
  * 復元する。
  */
 export function useAuthSession(): AuthSession {
-  const [status, setStatus] = useState<SessionStatus>('CHECKING');
-  const [role, setRole] = useState<Role>(null);
-  const [email, setEmail] = useState('');
+  const [session, setSession] = useState<{
+    status: SessionStatus; role: Role; email: string;
+  }>({ status: 'CHECKING', role: null, email: '' });
+  const mounted = useRef(false);
+  const version = useRef(0);
 
-  const refresh = useCallback(async () => {
-    setStatus('CHECKING');
+  const readSession = useCallback(async (request: number) => {
+    let next: { status: SessionStatus; role: Role; email: string };
     try {
       const session = await fetchAuthSession();
       const idToken = session.tokens?.idToken;
-      if (!idToken) {
-        setRole(null);
-        setEmail('');
-        setStatus('SIGNED_OUT');
-        return;
-      }
-      setRole(resolveRole(idToken.payload['cognito:groups']));
-      setEmail(typeof idToken.payload.email === 'string' ? idToken.payload.email : '');
-      setStatus('SIGNED_IN');
+      next = idToken ? {
+        status: 'SIGNED_IN',
+        role: resolveRole(idToken.payload['cognito:groups']),
+        email: typeof idToken.payload.email === 'string' ? idToken.payload.email : '',
+      } : { status: 'SIGNED_OUT', role: null, email: '' };
     } catch {
-      setRole(null);
-      setEmail('');
-      setStatus('SIGNED_OUT');
+      next = { status: 'SIGNED_OUT', role: null, email: '' };
     }
+    // Ignore an older restore/refresh, including StrictMode's first setup.
+    if (mounted.current && request === version.current) setSession(next);
   }, []);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    if (!mounted.current) return;
+    const request = ++version.current;
+    setSession({ status: 'CHECKING', role: null, email: '' });
+    await readSession(request);
+  }, [readSession]);
 
-  return { status, role, email, refresh };
+  useEffect(() => {
+    mounted.current = true;
+    void readSession(++version.current);
+    return () => { mounted.current = false; version.current += 1; };
+  }, [readSession]);
+
+  return { ...session, refresh };
 }
