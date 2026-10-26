@@ -13,6 +13,7 @@ function apiTemplate(): Template {
   const api = new ApiStack(app, 'TestApi', {
     userPool: auth.userPool,
     usersTable: data.usersTable,
+    classAuditTable: data.classAuditTable,
     invitationsTable: data.invitationsTable,
     schoolClassesTable: data.schoolClassesTable,
     subjectsTable: data.subjectsTable,
@@ -84,4 +85,17 @@ test('email-only registration stays enabled with an immutable invitation marker'
     AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
     Schema: Match.arrayWith([{ Name: 'invitation_id', AttributeDataType: 'String', Mutable: false }]),
   });
+});
+
+test('administrator handlers have no Cognito administration and cannot delete users or audit records', () => {
+  authTemplate.hasResourceProperties('AWS::Cognito::UserPoolGroup', { GroupName: 'ADMIN' });
+  const functions = Object.entries(template.findResources('AWS::Lambda::Function')).filter(([id]) => id.includes('Admin'));
+  expect(functions).toHaveLength(4);
+  const policies = Object.entries(template.findResources('AWS::IAM::Policy')).filter(([id]) => id.includes('Admin'));
+  for (const [, policy] of policies) {
+    const actions = policy.Properties.PolicyDocument.Statement.flatMap((s: {Action: string | string[]}) => typeof s.Action === 'string' ? [s.Action] : s.Action);
+    expect(actions.some((a: string) => a.startsWith('cognito-idp:'))).toBe(false);
+    expect(actions).not.toContain('dynamodb:DeleteItem');
+    expect(actions).not.toContain('dynamodb:BatchWriteItem');
+  }
 });

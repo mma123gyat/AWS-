@@ -52,8 +52,8 @@ def get_authenticated_user(event: dict[str, Any]) -> AuthenticatedUser:
         raise ForbiddenError("アカウントの権限を確認できません。ログインし直してください。")
 
     groups = _parse_groups(claims.get("cognito:groups"))
-    role = next((g for g in groups if g in ("STUDENT", "TEACHER", "PARENT", "SUPPORT")), user.get("role"))
-    if role not in ("STUDENT", "TEACHER", "PARENT", "SUPPORT") or role != user.get("role"):
+    role = 'ADMIN' if 'ADMIN' in groups else next((g for g in groups if g in ("ADMIN", "STUDENT", "TEACHER", "PARENT", "SUPPORT")), user.get("role"))
+    if role not in ("ADMIN", "STUDENT", "TEACHER", "PARENT", "SUPPORT") or role != user.get("role"):
         raise ForbiddenError("アカウントの権限が変更されました。ログインし直してください。")
 
     return AuthenticatedUser(
