@@ -1,0 +1,15 @@
+.invitation-page { display: grid; gap: 1.5rem; }
+.invitation-page h1 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; }
+.invitation-page h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: .75rem; }
+.invitation-form, .invitation-list { padding: clamp(1rem, 3vw, 1.75rem); }
+.invitation-form form { display: grid; gap: .6rem; max-width: 36rem; margin-top: 1rem; }
+.invitation-form label { font-weight: 600; margin-top: .5rem; }
+.invitation-form input, .invitation-form select { width: 100%; border: 1px solid #cbd5e1; border-radius: .65rem; padding: .7rem; background: white; min-width: 0; }
+.invitation-form button { margin-top: .75rem; }
+.invitation-list ul { list-style: none; padding: 0; }
+.invitation-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #e2e8f0; }
+.invitation-list li div { min-width: 0; overflow-wrap: anywhere; }
+.invitation-list h3 { font-weight: 700; }
+.invitation-list h3 span { font-size: .8rem; font-weight: 400; }
+.invitation-list button { flex-shrink: 0; }
+@media (max-width: 600px) { .invitation-list li { align-items: flex-start; flex-direction: column; } }

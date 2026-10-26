@@ -5,11 +5,12 @@ import * as cognito from 'aws-cdk-lib/aws-cognito';
 /**
  * Cognito User Pool. Role authorization is driven by Cognito Groups
  * (STUDENT / TEACHER), surfaced to API Gateway/Lambda via the
- * `cognito:groups` claim in the verified JWT — no custom attribute needed.
+ * `cognito:groups` claim in the verified JWT. The immutable invitation_id
+ * attribute identifies accounts provisioned by our invitation flow.
  *
- * MVP has no self-signup UI: accounts are created by an admin via the seed
- * script (scripts/seed_users.py), matching the plan's decision to defer
- * self-registration to a later phase.
+ * Self-registration remains disabled. The first teacher is seeded by an
+ * administrator; authenticated teachers provision other roles through the
+ * invitation API.
  */
 export class AuthStack extends cdk.Stack {
   public readonly userPool: cognito.UserPool;
@@ -23,6 +24,9 @@ export class AuthStack extends cdk.Stack {
       selfSignUpEnabled: false,
       signInAliases: { email: true },
       autoVerify: { email: true },
+      customAttributes: {
+        invitation_id: new cognito.StringAttribute({ mutable: false }),
+      },
       standardAttributes: {
         fullname: { required: true, mutable: true },
       },
