@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from src.repositories.dynamodb_client import table
+from src.repositories.dynamodb_client import table, table_name, to_attribute_map, transact_write_items
+from src.repositories.users_repository import teacher_access_check
 
 _TABLE_ENV = "STUDENT_PROGRESSES_TABLE_NAME"
 _TABLE_DEFAULT = "StudentProgresses"
@@ -30,6 +31,8 @@ def put_progress(
     unit_name: str,
     understanding: int,
     status: str,
+    *,
+    teacher: dict | None = None,
 ) -> dict[str, Any]:
     item = {
         "student_progress_id": f"{student_id}#{subject_id}",
@@ -40,5 +43,19 @@ def put_progress(
         "status": status,
         "updated_at": datetime.now(UTC).isoformat(),
     }
-    _table().put_item(Item=item)
+    if teacher is None:
+        # Admin seed callers retain their existing behavior.
+        _table().put_item(Item=item)
+    else:
+        transact_write_items([
+            teacher_access_check(teacher),
+            {"ConditionCheck": {
+                "TableName": table_name("USERS_TABLE_NAME", "Users"),
+                "Key": to_attribute_map({"user_id": student_id}),
+                "ConditionExpression": "#role = :student AND class_id = :class",
+                "ExpressionAttributeNames": {"#role": "role"},
+                "ExpressionAttributeValues": to_attribute_map({":student": "STUDENT", ":class": teacher["class_id"]}),
+            }},
+            {"Put": {"TableName": table_name(_TABLE_ENV, _TABLE_DEFAULT), "Item": to_attribute_map(item)}},
+        ])
     return item

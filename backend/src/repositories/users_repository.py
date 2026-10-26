@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from src.repositories.dynamodb_client import table
+from src.repositories.dynamodb_client import table, table_name, to_attribute_map, transact_write_items
 
 _TABLE_ENV = "USERS_TABLE_NAME"
 _TABLE_DEFAULT = "Users"
@@ -88,14 +88,29 @@ def update_user_fields(user_id: str, **fields: Any) -> dict[str, Any]:
     return response["Attributes"]
 
 
-def put_ai_parameters(student_id: str, class_id: str, params: dict[str, int]) -> dict[str, Any]:
+def teacher_access_check(teacher: dict) -> dict:
+    """A transaction condition bound to the teacher verified at request start."""
+    return {"ConditionCheck": {
+        "TableName": table_name(_TABLE_ENV, _TABLE_DEFAULT),
+        "Key": to_attribute_map({"user_id": teacher["user_id"]}),
+        "ConditionExpression": "#role = :teacher AND cognito_sub = :sub AND class_id = :class",
+        "ExpressionAttributeNames": {"#role": "role"},
+        "ExpressionAttributeValues": to_attribute_map({":teacher": "TEACHER", ":sub": teacher["cognito_sub"], ":class": teacher["class_id"]}),
+    }}
+
+
+def put_ai_parameters(student_id: str, class_id: str, params: dict[str, int], *, teacher: dict) -> dict[str, Any]:
     now = datetime.now(UTC).isoformat()
-    response = _table().update_item(
-        Key={"user_id": student_id},
-        UpdateExpression="SET ai_parameters = :params, ai_parameters_updated_at = :now, updated_at = :now",
-        ConditionExpression="attribute_exists(user_id) AND #role = :student AND class_id = :class_id",
-        ExpressionAttributeNames={"#role": "role"},
-        ExpressionAttributeValues={":params": params, ":now": now, ":student": "STUDENT", ":class_id": class_id},
-        ReturnValues="ALL_NEW",
-    )
-    return response["Attributes"]
+    transact_write_items([
+        teacher_access_check(teacher),
+        {"Update": {
+            "TableName": table_name(_TABLE_ENV, _TABLE_DEFAULT),
+            "Key": to_attribute_map({"user_id": student_id}),
+            "UpdateExpression": "SET ai_parameters = :params, ai_parameters_updated_at = :now, updated_at = :now",
+            "ConditionExpression": "attribute_exists(user_id) AND #role = :student AND class_id = :class_id",
+            "ExpressionAttributeNames": {"#role": "role"},
+            "ExpressionAttributeValues": to_attribute_map({":params": params, ":now": now, ":student": "STUDENT", ":class_id": class_id}),
+        }},
+    ])
+    # Acknowledge this save rather than re-reading a later concurrent save.
+    return {"user_id": student_id, "ai_parameters": params, "ai_parameters_updated_at": now}
