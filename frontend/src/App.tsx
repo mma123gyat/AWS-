@@ -1,6 +1,6 @@
-import { lazy, useState } from 'react'
+import { lazy, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { signIn, signOut } from 'aws-amplify/auth'
+import { confirmSignIn, signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import { PortalFrame } from './components/layout/PortalFrame'
 import { AsyncScreen } from './components/ui/AsyncScreen'
@@ -14,6 +14,7 @@ const StudentListPage = lazy(() => import('./features/teacher/pages/StudentListP
 const StudentProgressPage = lazy(() => import('./features/teacher/pages/StudentProgressPage').then(module => ({ default: module.StudentProgressPage })))
 const TeacherDashboardPage = lazy(() => import('./features/teacher/pages/TeacherDashboardPage').then(module => ({ default: module.TeacherDashboardPage })))
 const TeacherLearningLogsPage = lazy(() => import('./features/teacher/pages/TeacherLearningLogsPage').then(module => ({ default: module.TeacherLearningLogsPage })))
+const TeacherInvitationsPage = lazy(() => import('./features/teacher/pages/TeacherInvitationsPage').then(module => ({ default: module.TeacherInvitationsPage })))
 const TeacherAlertsPage = lazy(() => import('./features/teacher/pages/TeacherAlertsPage').then(module => ({ default: module.TeacherAlertsPage })))
 const ParentLayout = lazy(() => import('./features/parent/ParentLayout').then(module => ({ default: module.ParentLayout })))
 const ParentDashboardPage = lazy(() => import('./features/parent/pages/ParentDashboardPage').then(module => ({ default: module.ParentDashboardPage })))
@@ -26,25 +27,39 @@ const StudentDashboardPage = lazy(() => import('./features/student/pages/Student
 function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
   const [busy, setBusy] = useState(false)
+  const submitting = useRef(false)
   const [error, setError] = useState('')
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (busy) return
+    if (busy || submitting.current) return
 
+    submitting.current = true
     setBusy(true)
     setError('')
 
     try {
-      const result = await signIn({
-        username: email.trim(),
-        password,
-      })
+      if (changingPassword && newPassword !== confirmation) {
+        setError('新しいパスワードが一致しません。')
+        return
+      }
+      const result = changingPassword
+        ? await confirmSignIn({ challengeResponse: newPassword })
+        : await signIn({ username: email.trim(), password })
 
       if (result.isSignedIn) {
         setPassword('')
+        setNewPassword('')
+        setConfirmation('')
         onSignedIn()
+      } else if (result.nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED'
+        && (result.nextStep.missingAttributes ?? []).length === 0) {
+        setPassword('')
+        setChangingPassword(true)
       } else {
         setPassword('')
         setError('追加認証が必要です。アカウントの設定を確認してください。')
@@ -52,7 +67,12 @@ function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
     } catch (err) {
       const name = err instanceof Error ? err.name : ''
 
-      if (name === 'NotAuthorizedException' || name === 'UserNotFoundException') {
+      if (changingPassword && ['NotAuthorizedException', 'SignInException'].includes(name)) {
+        setChangingPassword(false)
+        setNewPassword('')
+        setConfirmation('')
+        setError('初回設定の有効時間が切れました。招待メールの情報でログインし直してください。')
+      } else if (name === 'NotAuthorizedException' || name === 'UserNotFoundException') {
         setError('メールアドレスまたはパスワードを確認してください。')
       } else {
         setError(
@@ -62,6 +82,7 @@ function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
         )
       }
     } finally {
+      submitting.current = false
       setBusy(false)
     }
   }
@@ -70,7 +91,7 @@ function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
     <main className="auth-page">
       <section className="auth-card">
         <p className="eyebrow">学習サポート</p>
-        <h1>ログイン</h1>
+        <h1>{changingPassword ? '初回パスワード設定' : 'ログイン'}</h1>
         <p className="muted">アカウント情報を入力してください。</p>
 
         <form onSubmit={handleLogin}>
@@ -81,10 +102,11 @@ function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            disabled={busy}
+            disabled={busy || changingPassword}
             required
           />
 
+          {!changingPassword && <>
           <label htmlFor="password">パスワード</label>
           <input
             id="password"
@@ -96,10 +118,19 @@ function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
             required
           />
 
+          </>}
+          {changingPassword && <>
+            <p className="muted">今後のログインに使うパスワードを設定してください。小文字と数字を含む8文字以上で入力してください。</p>
+            <label htmlFor="new-password">新しいパスワード</label>
+            <input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={256} value={newPassword} onChange={event => setNewPassword(event.target.value)} disabled={busy} required />
+            <label htmlFor="confirm-password">新しいパスワード（確認）</label>
+            <input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={256} value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={busy} required />
+          </>}
           <button className="primary-button" type="submit" disabled={busy}>
-            {busy ? 'ログイン中…' : 'ログイン'}
+            {busy ? '処理中…' : changingPassword ? '設定してログイン' : 'ログイン'}
           </button>
         </form>
+        {changingPassword && <button type="button" className="secondary" disabled={busy} onClick={() => { setChangingPassword(false); setNewPassword(''); setConfirmation(''); setPassword(''); setError('') }}>ログインに戻る</button>}
 
         {error && <p className="error" role="alert">{error}</p>}
       </section>
@@ -291,6 +322,7 @@ function App() {
             <Route path="students" element={<AsyncScreen page><StudentListPage /></AsyncScreen>} />
             <Route path="students/:studentId/progress" element={<AsyncScreen page><StudentProgressPage /></AsyncScreen>} />
             <Route path="logs" element={<AsyncScreen page><TeacherLearningLogsPage /></AsyncScreen>} />
+            <Route path="invitations" element={<AsyncScreen page><TeacherInvitationsPage /></AsyncScreen>} />
             <Route path="alerts" element={<AsyncScreen page><TeacherAlertsPage /></AsyncScreen>} />
           </Route>
         </Route>

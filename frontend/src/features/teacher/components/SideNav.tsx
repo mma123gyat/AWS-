@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/teacher/students', label: '生徒一覧' },
   { to: '/teacher/logs', label: '学習ログ' },
   { to: '/teacher/alerts', label: 'アラート' },
+  { to: '/teacher/invitations', label: 'アカウント招待' },
 ];
 
 export function SideNav() {

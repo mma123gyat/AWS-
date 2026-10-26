@@ -16,6 +16,7 @@ new ApiStack(app, 'StudyPlatformApiStack', {
   env,
   userPool: authStack.userPool,
   usersTable: dataStack.usersTable,
+  invitationsTable: dataStack.invitationsTable,
   schoolClassesTable: dataStack.schoolClassesTable,
   subjectsTable: dataStack.subjectsTable,
   curriculumsTable: dataStack.curriculumsTable,

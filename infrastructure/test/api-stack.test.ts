@@ -4,6 +4,8 @@ import { ApiStack } from '../lib/api-stack';
 import { AuthStack } from '../lib/auth-stack';
 import { DataStack } from '../lib/data-stack';
 
+let authTemplate: Template;
+
 function apiTemplate(): Template {
   const app = new cdk.App();
   const data = new DataStack(app, 'TestData');
@@ -11,6 +13,7 @@ function apiTemplate(): Template {
   const api = new ApiStack(app, 'TestApi', {
     userPool: auth.userPool,
     usersTable: data.usersTable,
+    invitationsTable: data.invitationsTable,
     schoolClassesTable: data.schoolClassesTable,
     subjectsTable: data.subjectsTable,
     curriculumsTable: data.curriculumsTable,
@@ -21,6 +24,7 @@ function apiTemplate(): Template {
     studyRecordsTable: data.studyRecordsTable,
     messagesTable: data.messagesTable,
   });
+  authTemplate = Template.fromStack(auth);
   return Template.fromStack(api);
 }
 
@@ -56,4 +60,28 @@ test('every application method still requires Cognito authorization', () => {
     expect(method.Properties.AuthorizationType).toBe('COGNITO_USER_POOLS');
     expect(method.Properties.AuthorizerId).toBeDefined();
   }
+});
+
+
+test('only the invitation sender can administer users in the configured pool', () => {
+  const functions = template.findResources('AWS::Lambda::Function');
+  const sender = Object.entries(functions).find(([, item]) => item.Properties.Handler === 'src.handlers.teacher.post_invitation.handler');
+  expect(sender).toBeDefined();
+  expect(sender![1].Properties.Environment.Variables.COGNITO_USER_POOL_ID).toBeDefined();
+  const policies = template.findResources('AWS::IAM::Policy');
+  const statements = Object.values(policies).flatMap(item => item.Properties.PolicyDocument.Statement);
+  const administrative = statements.filter(item => JSON.stringify(item.Action).includes('cognito-idp:Admin'));
+  expect(administrative).toHaveLength(1);
+  expect(administrative[0].Action).toEqual(expect.arrayContaining(['cognito-idp:AdminGetUser', 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminAddUserToGroup']));
+  expect(administrative[0].Resource).not.toEqual('*');
+  expect(administrative[0].Action).not.toContain('cognito-idp:AdminSetUserPassword');
+});
+
+
+test('email-only registration stays enabled with an immutable invitation marker', () => {
+  authTemplate.hasResourceProperties('AWS::Cognito::UserPool', {
+    UsernameAttributes: ['email'],
+    AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
+    Schema: Match.arrayWith([{ Name: 'invitation_id', AttributeDataType: 'String', Mutable: false }]),
+  });
 });

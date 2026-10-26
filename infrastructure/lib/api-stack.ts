@@ -10,6 +10,7 @@ import * as path from 'path';
 export interface ApiStackProps extends cdk.StackProps {
   userPool: cognito.UserPool;
   usersTable: dynamodb.Table;
+  invitationsTable: dynamodb.Table;
   schoolClassesTable: dynamodb.Table;
   subjectsTable: dynamodb.Table;
   curriculumsTable: dynamodb.Table;
@@ -120,6 +121,26 @@ export class ApiStack extends cdk.Stack {
     const getTeacherMeFn = createFunction('GetTeacherMeFn', 'src.handlers.teacher.get_me.handler');
     props.schoolClassesTable.grantReadData(getTeacherMeFn);
     teacher.addResource('me').addMethod('GET', new apigateway.LambdaIntegration(getTeacherMeFn), authorizedMethodOptions);
+
+    const invitations = teacher.addResource('invitations');
+    const getInvitationsFn = createFunction('GetInvitationsFn', 'src.handlers.teacher.get_invitations.handler');
+    getInvitationsFn.addEnvironment('INVITATIONS_TABLE_NAME', props.invitationsTable.tableName);
+    props.invitationsTable.grantReadData(getInvitationsFn);
+    props.schoolClassesTable.grantReadData(getInvitationsFn);
+    invitations.addMethod('GET', new apigateway.LambdaIntegration(getInvitationsFn), authorizedMethodOptions);
+    const postInvitationFn = createFunction('PostInvitationFn', 'src.handlers.teacher.post_invitation.handler');
+    postInvitationFn.addEnvironment('INVITATIONS_TABLE_NAME', props.invitationsTable.tableName);
+    props.invitationsTable.grantReadWriteData(postInvitationFn);
+    postInvitationFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:PutItem'], resources: [props.usersTable.tableArn],
+    }));
+    props.schoolClassesTable.grantReadData(postInvitationFn);
+    postInvitationFn.addEnvironment('COGNITO_USER_POOL_ID', props.userPool.userPoolId);
+    postInvitationFn.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['cognito-idp:AdminGetUser', 'cognito-idp:AdminCreateUser', 'cognito-idp:AdminAddUserToGroup'],
+      resources: [props.userPool.userPoolArn],
+    }));
+    invitations.addMethod('POST', new apigateway.LambdaIntegration(postInvitationFn), authorizedMethodOptions);
 
     // /teacher/classes/{classId}/progress
     const classes = teacher.addResource('classes');
