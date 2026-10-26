@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from src.repositories.users_repository import get_user_by_cognito_sub
+from src.repositories.users_repository import get_user_by_cognito_sub, get_user_by_id
 from src.utils.errors import ForbiddenError, UnauthorizedError
 
 
@@ -40,12 +40,21 @@ def get_authenticated_user(event: dict[str, Any]) -> AuthenticatedUser:
     if not cognito_sub:
         raise UnauthorizedError("認証情報が確認できませんでした。")
 
-    user = get_user_by_cognito_sub(cognito_sub)
-    if not user:
+    candidate = get_user_by_cognito_sub(cognito_sub)
+    if not candidate:
         raise UnauthorizedError("ユーザー情報が見つかりませんでした。")
+
+    # The GSI only locates the row. Its role, class and link may be stale.
+    # Re-read the base table consistently before authorizing any endpoint,
+    # including student endpoints that have no additional role resolver.
+    user = get_user_by_id(candidate["user_id"])
+    if not user or user.get("cognito_sub") != cognito_sub:
+        raise ForbiddenError("アカウントの権限を確認できません。ログインし直してください。")
 
     groups = _parse_groups(claims.get("cognito:groups"))
     role = next((g for g in groups if g in ("STUDENT", "TEACHER", "PARENT", "SUPPORT")), user.get("role"))
+    if role not in ("STUDENT", "TEACHER", "PARENT", "SUPPORT") or role != user.get("role"):
+        raise ForbiddenError("アカウントの権限が変更されました。ログインし直してください。")
 
     return AuthenticatedUser(
         user_id=user["user_id"],

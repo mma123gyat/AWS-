@@ -54,6 +54,9 @@ jobs:
       - name: Build infrastructure
         run: npm --prefix infrastructure run build
 
+      - name: Test infrastructure
+        run: npm --prefix infrastructure test -- --runInBand
+
   backend:
     name: Backend unit tests
     runs-on: ubuntu-latest

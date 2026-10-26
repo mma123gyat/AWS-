@@ -15,10 +15,15 @@ class TestConditionValidator:
     def test_accepts_allowed_values(self, minutes):
         assert validate_condition_input({"availableMinutes": minutes}) == minutes
 
-    @pytest.mark.parametrize("minutes", [1, 10, 60, -5, "15", None])
+    @pytest.mark.parametrize("minutes", [1, 10, 60, -5, "15", None, False, True, 15.0, [], {}])
     def test_rejects_disallowed_values(self, minutes):
         with pytest.raises(ValidationError):
             validate_condition_input({"availableMinutes": minutes})
+
+    @pytest.mark.parametrize("payload", [None, [], "15", 15, False])
+    def test_rejects_non_objects(self, payload):
+        with pytest.raises(ValidationError):
+            validate_condition_input(payload)
 
 
 class TestUnderstandingValidator:

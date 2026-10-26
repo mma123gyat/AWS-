@@ -1,8 +1,12 @@
+import os
+import secrets
+
 import boto3
 import pytest
 from moto import mock_aws
 
 from scripts.seed_users import _get_or_create_cognito_user, _get_or_create_user_row
+from scripts import seed_users
 from src.repositories import dynamodb_client
 from src.repositories.users_repository import create_user, get_user_by_cognito_sub
 
@@ -15,6 +19,8 @@ def _aws_credentials(monkeypatch):
     monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
     monkeypatch.setenv("AWS_REGION", "ap-northeast-1")
     monkeypatch.setenv("AWS_DEFAULT_REGION", "ap-northeast-1")
+    for role in ("TEACHER", "STUDENT", "PARENT", "SUPPORT"):
+        monkeypatch.setenv(f"SEED_{role}_PASSWORD", "Aa1!" + secrets.token_urlsafe(18))
 
 
 @pytest.fixture
@@ -99,6 +105,7 @@ def test_get_or_create_cognito_user_backfills_group_for_pre_existing_user_missin
 def test_get_or_create_cognito_user_does_not_reset_password_for_existing_user(seed_env, monkeypatch):
     cognito_client, pool_id = seed_env
     _get_or_create_cognito_user(cognito_client, pool_id, "teacher@example.com", "山田先生", "TEACHER")
+    monkeypatch.delenv("SEED_TEACHER_PASSWORD")
 
     def _fail(*args, **kwargs):
         raise AssertionError("admin_set_user_password は既存ユーザーに対して呼ばれるべきではない")
@@ -106,6 +113,48 @@ def test_get_or_create_cognito_user_does_not_reset_password_for_existing_user(se
     monkeypatch.setattr(cognito_client, "admin_set_user_password", _fail)
 
     _get_or_create_cognito_user(cognito_client, pool_id, "teacher@example.com", "山田先生", "TEACHER")
+
+
+@pytest.mark.parametrize("role", ["TEACHER", "STUDENT", "PARENT", "SUPPORT"])
+def test_new_account_uses_its_private_role_password(seed_env, monkeypatch, role):
+    client, pool_id = seed_env
+    original = client.admin_set_user_password
+    observed = []
+
+    def set_password(**kwargs):
+        observed.append(kwargs)
+        return original(**kwargs)
+
+    monkeypatch.setattr(client, "admin_set_user_password", set_password)
+    _get_or_create_cognito_user(client, pool_id, "new@example.invalid", "テスト", role)
+    assert len(observed) == 1
+    assert observed[0]["Password"] == os.environ[f"SEED_{role}_PASSWORD"]
+    assert observed[0]["Permanent"] is True
+
+
+@pytest.mark.parametrize("value", [None, "", "short1a", "NOLOWER123", "nodigitsallowed", " aa123456", "aa 123456", "aa123\n456", "a1" * 129])
+def test_missing_or_invalid_password_fails_before_creating_user(seed_env, monkeypatch, value):
+    client, pool_id = seed_env
+    if value is None:
+        monkeypatch.delenv("SEED_STUDENT_PASSWORD")
+    else:
+        monkeypatch.setenv("SEED_STUDENT_PASSWORD", value)
+    with pytest.raises(ValueError, match="SEED_STUDENT_PASSWORD"):
+        _get_or_create_cognito_user(client, pool_id, "new@example.invalid", "テスト", "STUDENT")
+    assert client.list_users(UserPoolId=pool_id)["Users"] == []
+
+
+def test_seed_output_contains_no_passwords(seed_env, monkeypatch, capsys):
+    client, pool_id = seed_env
+    monkeypatch.setenv("COGNITO_USER_POOL_ID", pool_id)
+    monkeypatch.setattr(seed_users, "put_class", lambda *args, **kwargs: None)
+    monkeypatch.setattr(seed_users, "put_subject", lambda *args, **kwargs: None)
+    seed_users.main()
+    output = capsys.readouterr().out
+    assert "Seed complete." in output
+    assert len(client.list_users(UserPoolId=pool_id)["Users"]) == 4
+    for role in ("TEACHER", "STUDENT", "PARENT", "SUPPORT"):
+        assert os.environ[f"SEED_{role}_PASSWORD"] not in output
 
 
 def test_get_or_create_user_row_creates_new_row_when_none_exists(seed_env):
