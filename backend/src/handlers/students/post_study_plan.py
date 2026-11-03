@@ -22,5 +22,8 @@ def handler(event: dict, context) -> dict:
         return success({"isRestDay": True, "plan": None})
 
     request_id = getattr(context, "aws_request_id", "local")
-    plan = generate_plan_for_student(user.user_id, available_minutes, request_id)
+    if condition.get("subject_id"):
+        plan = generate_plan_for_student(user.user_id, available_minutes, request_id, subject_id=condition["subject_id"])
+    else:
+        plan = generate_plan_for_student(user.user_id, available_minutes, request_id)
     return success({"isRestDay": False, "plan": plan})

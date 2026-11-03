@@ -32,6 +32,23 @@ function apiTemplate(): Template {
 let template: Template;
 beforeAll(() => { template = apiTemplate(); });
 
+test('subject selection can validate student and class progress without writing those tables', () => {
+  const policies = Object.entries(template.findResources('AWS::IAM::Policy'))
+    .filter(([id]) => id.includes('PostConditionFn'));
+  expect(policies).toHaveLength(1);
+  const statements = policies[0][1].Properties.PolicyDocument.Statement;
+  for (const table of ['StudentProgresses', 'Curriculums']) {
+    const reads = statements.filter((s: {Resource: unknown}) => JSON.stringify(s.Resource).includes(table));
+    expect(reads.length).toBeGreaterThan(0);
+    expect(reads.flatMap((s: {Action: string[]}) => s.Action)).toContain('dynamodb:GetItem');
+    for (const statement of reads) {
+      expect(statement.Action).not.toContain('dynamodb:PutItem');
+      expect(statement.Action).not.toContain('dynamodb:UpdateItem');
+      expect(statement.Action).not.toContain('dynamodb:DeleteItem');
+    }
+  }
+});
+
 test('gateway errors have CORS and JSON envelopes without overriding HTTP status codes', () => {
   template.resourceCountIs('AWS::ApiGateway::GatewayResponse', 2);
   for (const type of ['DEFAULT_4XX', 'DEFAULT_5XX']) {

@@ -118,8 +118,12 @@ def complete_task_with_record(
     condition_check = {"ConditionCheck": {
         "TableName": table_name("DAILY_CONDITIONS_TABLE_NAME", "DailyConditions"),
         "Key": to_attribute_map({"student_id": student_id, "date": today}),
-        "ConditionExpression": "available_minutes = :minutes",
-        "ExpressionAttributeValues": to_attribute_map({":minutes": active_plan["available_minutes"]}),
+        "ConditionExpression": (
+            "available_minutes = :minutes AND (attribute_not_exists(subject_id) OR subject_id = :subject)"
+        ),
+        "ExpressionAttributeValues": to_attribute_map({
+            ":minutes": active_plan["available_minutes"], ":subject": task["subject_id"],
+        }),
     }}
     try:
         transact_write_items([task_update, record_put, active_plan_check, condition_check])

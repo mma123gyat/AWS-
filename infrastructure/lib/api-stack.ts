@@ -282,6 +282,8 @@ export class ApiStack extends cdk.Stack {
 
     const postConditionFn = createFunction('PostConditionFn', 'src.handlers.students.post_condition.handler');
     props.dailyConditionsTable.grantReadWriteData(postConditionFn);
+    props.studentProgressesTable.grantReadData(postConditionFn);
+    props.curriculumsTable.grantReadData(postConditionFn);
     studentsMe
       .addResource('condition')
       .addMethod('POST', new apigateway.LambdaIntegration(postConditionFn), authorizedMethodOptions);

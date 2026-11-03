@@ -15,11 +15,13 @@ export type DailyCondition = {
   student_id: string
   date: string
   available_minutes: AvailableMinutes
+  subject_id?: string
   created_at: string
 }
 
 export async function saveCondition(
   availableMinutes: AvailableMinutes,
+  subjectId?: string,
 ): Promise<DailyCondition> {
   const session = await fetchAuthSession()
   const token = session.tokens?.idToken?.toString()
@@ -34,7 +36,7 @@ export async function saveCondition(
       Authorization: token,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ availableMinutes }),
+    body: JSON.stringify({ availableMinutes, ...(availableMinutes > 0 && subjectId ? { subjectId } : {}) }),
   })
 
   if (!response.ok) {
@@ -44,7 +46,8 @@ export async function saveCondition(
     if (response.status === 403) {
       throw new Error('生徒アカウントでログインしてください。')
     }
-    throw new Error(`学習時間を登録できませんでした（${response.status}）。`)
+    const result = await response.json().catch(() => null)
+    throw new Error(result?.error?.message ?? `学習時間を登録できませんでした（${response.status}）。`)
   }
 
   const result = await response.json()
@@ -56,5 +59,8 @@ export async function saveCondition(
     throw new Error('登録結果を確認できませんでした。')
   }
 
+  if (availableMinutes > 0 && subjectId && result.data.subject_id !== subjectId) {
+    throw new Error('教科の登録結果を確認できませんでした。教科選択に対応したAPIへ更新されているか確認してください。')
+  }
   return result.data as DailyCondition
 }

@@ -1,0 +1,22 @@
+.math-materials { max-width: 1080px; margin: 0 auto; display: grid; gap: 16px; }
+.math-materials h1 { margin: 0; }
+.math-materials h2, .math-materials h3 { color: var(--ink); }
+.math-section { padding: 24px; }
+.math-materials p { line-height: 1.8; }
+.math-explanation, .math-hints { padding-left: 1.5rem; line-height: 1.9; }
+.math-animation { background: #f5f7fb; padding: 16px; border-radius: 12px; }
+.math-animation canvas { display: block; max-width: 100%; height: auto; border-radius: 8px; background: #0f172a; }
+.math-control { display: grid; gap: 6px; max-width: 380px; margin-top: 12px; }
+.math-question { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 16px; }
+.math-question fieldset { border: 0; padding: 0; min-width: 0; }
+.math-question legend { margin-bottom: 12px; font-weight: 600; line-height: 1.8; }
+.math-choice { display: flex; align-items: flex-start; gap: 10px; padding: 12px; margin: 8px 0; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; }
+.math-choice input { width: auto; margin: 5px 0 0; flex: 0 0 auto; }
+.math-choice span { overflow-wrap: anywhere; }
+.math-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.math-feedback { border-left: 3px solid var(--accent); padding-left: 12px; margin-top: 12px; }
+.math-catalog { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.math-catalog a { display: block; height: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 8px; line-height: 1.7; color: var(--accent); }
+.math-catalog span { display: block; color: var(--muted); font-size: .85rem; }
+.math-materials input[type="search"] { width: 100%; margin-top: 8px; }
+@media (max-width: 600px) { .math-section { padding: 16px; } .math-catalog { grid-template-columns: 1fr; } }

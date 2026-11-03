@@ -24,6 +24,7 @@ const SupportReportPage = lazy(() => import('./features/support/pages/SupportRep
 const SharingSettingsPanel = lazy(() => import('./features/sharing/SharingSettingsPanel').then(module => ({ default: module.SharingSettingsPanel })))
 const SharingSettingsPage = lazy(() => import('./features/support/pages/SharingSettingsPage').then(module => ({ default: module.SharingSettingsPage })))
 const StudentDashboardPage = lazy(() => import('./features/student/pages/StudentDashboardPage').then(module => ({ default: module.StudentDashboardPage })))
+const MathMaterialsPage = lazy(() => import('./features/math/MathMaterialsPage').then(module => ({ default: module.MathMaterialsPage })))
 
 function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState('')
@@ -165,6 +166,7 @@ function StudentLayout({ email, onLogout }: { email: string; onLogout: () => voi
       links={[
         { to: '/dashboard', label: 'ダッシュボード' },
         { to: '/condition', label: '学習時間' },
+        { to: '/materials/math', label: '数学教材' },
         { to: '/sharing', label: '共有設定' },
       ]}
     >
@@ -177,7 +179,7 @@ function ConditionPage() {
   return (
     <section className="condition-panel surface-card">
       <p className="eyebrow">今日のペースを決めよう</p>
-      <h1>今日の学習時間</h1>
+      <h1>今日の教科と学習時間</h1>
       <StudyTimeForm />
     </section>
   )
@@ -317,6 +319,8 @@ function App() {
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
             <Route path="/condition" element={<AsyncScreen page><ConditionPage /></AsyncScreen>} />
             <Route path="/dashboard" element={<AsyncScreen page><StudentDashboardPage /></AsyncScreen>} />
+            <Route path="/materials/math" element={<AsyncScreen page><MathMaterialsPage /></AsyncScreen>} />
+            <Route path="/materials/math/:stepId" element={<AsyncScreen page><MathMaterialsPage /></AsyncScreen>} />
             <Route path="/sharing" element={<AsyncScreen page><SharingSettingsPanel key={session.email} role="STUDENT" /></AsyncScreen>} />
           </Route>
         </Route>

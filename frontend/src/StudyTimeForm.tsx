@@ -3,6 +3,10 @@ import type { FormEvent } from 'react'
 import { saveCondition } from './api'
 import type { AvailableMinutes, DailyCondition } from './api'
 import { useNavigate } from 'react-router-dom'
+import { getStudentDashboard } from './api/studentApi'
+import { useFetch } from './hooks/useFetch'
+import type { StudentDashboard } from './types/student'
+import { subjectName } from './features/student/utils/subjectSelection'
 
 const choices: { minutes: AvailableMinutes; label: string }[] = [
   { minutes: 0, label: '今日は休む' },
@@ -12,8 +16,18 @@ const choices: { minutes: AvailableMinutes; label: string }[] = [
 ]
 
 export default function StudyTimeForm() {
+  const { state, refetch } = useFetch(getStudentDashboard)
+  if (state.status === 'loading') return <p role="status">学習の設定を読み込み中…</p>
+  if (state.status === 'error') return <><p className="error" role="alert">{state.message}</p><button type="button" onClick={refetch}>再読み込み</button></>
+  return <TimeChoiceForm key={state.data.todayCondition?.condition_id ?? 'new'} dashboard={state.data} />
+}
+
+function TimeChoiceForm({ dashboard }: { dashboard: StudentDashboard }) {
   const navigate = useNavigate()
-  const [minutes, setMinutes] = useState<AvailableMinutes>(15)
+  const [minutes, setMinutes] = useState<AvailableMinutes>(dashboard.todayCondition?.available_minutes ?? 15)
+  const subjects = dashboard.availableSubjects ?? []
+  const initialSubject = dashboard.todayCondition?.subject_id ?? dashboard.myCurrentPosition?.subject_id ?? ''
+  const [subjectId, setSubjectId] = useState(subjects.some(s => s.subject_id === initialSubject) ? initialSubject : subjects[0]?.subject_id ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState<DailyCondition | null>(null)
@@ -22,6 +36,10 @@ export default function StudyTimeForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (submitting.current) return
+    if (minutes > 0 && (!subjectId || !subjects.some(s => s.subject_id === subjectId))) {
+      setError('先生に学習の現在地を登録してもらってから、教科を選んでください。')
+      return
+    }
 
     submitting.current = true
     setBusy(true)
@@ -29,7 +47,7 @@ export default function StudyTimeForm() {
     setSaved(null)
 
     try {
-      const condition = await saveCondition(minutes)
+      const condition = await saveCondition(minutes, minutes > 0 ? subjectId : undefined)
       setSaved(condition)
       navigate('/dashboard', { replace: true })
     } catch (err) {
@@ -53,6 +71,16 @@ export default function StudyTimeForm() {
         お休みの日があっても大丈夫です。
       </p>
 
+      {minutes > 0 && <div className="subject-choice">
+        <label htmlFor="study-subject">今日学ぶ教科</label>
+        <select id="study-subject" value={subjectId} disabled={busy || subjects.length === 0} onChange={event => { setSubjectId(event.target.value); setError('') }}>
+          {subjects.length === 0 && <option value="">選べる教科がありません</option>}
+          {subjects.map(subject => <option key={subject.subject_id} value={subject.subject_id}>{subjectName(subject.subject_id)}：{subject.unit_name}</option>)}
+        </select>
+        <p className="muted">先生が登録した学習の現在地から選べます。数学がない場合は、先生に数学の現在地と学校の授業進度を登録してもらってください。</p>
+        {!dashboard.availableSubjects && <p className="error" role="alert">教科一覧を取得できません。教科選択に対応したAPIの更新後に再読み込みしてください。</p>}
+      </div>}
+
       <div className="time-choices" role="group" aria-label="今日の学習時間">
         {choices.map((choice) => (
           <button
@@ -75,8 +103,9 @@ export default function StudyTimeForm() {
         ))}
       </div>
 
-      <button className="primary-button" type="submit" disabled={busy}>
-        {busy ? '登録中…' : 'この時間で登録する'}
+      <p className="muted">同じ日に同じ教科・時間へ戻すと、作成済みのプランと完了記録を引き継ぎます。</p>
+      <button className="primary-button" type="submit" disabled={busy || (minutes > 0 && subjects.length === 0)}>
+        {busy ? '登録中…' : minutes === 0 ? '今日は休む' : 'この教科・時間で登録する'}
       </button>
 
       {saved && (

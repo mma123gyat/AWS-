@@ -152,3 +152,9 @@
   .workspace-sidebar { display: none; }
   .workspace-content { padding: 0; max-width: none; }
 }
+.math-material-links { margin: 12px 0; display: flex; flex-wrap: wrap; gap: 12px; }
+
+.subject-choice { display: grid; gap: .5rem; margin: 1.25rem 0; }
+.subject-choice label { font-weight: 700; }
+.subject-choice select { width: 100%; min-width: 0; min-height: 44px; }
+.subject-choice p { margin: 0; }
