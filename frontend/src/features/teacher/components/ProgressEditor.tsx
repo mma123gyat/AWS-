@@ -3,6 +3,7 @@ import { ApiError } from '../../../api/client';
 import { getClassProgress, getStudentProgress, putClassProgress, putStudentProgress } from '../../../api/teacherApi';
 import { currentProgress, progressSubjects, readProgressItems } from '../utils/progressEditor';
 import type { ProgressKind, ProgressValue } from '../utils/progressEditor';
+import { ProgressUnitField } from './ProgressUnitField';
 
 type State = { status: 'loading' } | { status: 'error'; message: string } | {
   status: 'ready'; saved: Record<string, ProgressValue>; drafts: Record<string, ProgressValue>; subject: string;
@@ -111,9 +112,7 @@ function Editor({ kind, targetId }: { kind: ProgressKind; targetId: string }) {
           setError('');
         }}>{options.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}</select></div>
       <p className="text-xs text-gray-500">{Object.hasOwn(state.saved, state.subject) ? '登録済みの設定があります。編集して保存できます。' : 'この教科の現在地は未登録です。新しく登録できます。'} 教科を切り替えても、未保存の入力はこの画面を開いている間保持されます。</p>
-      <div><label htmlFor={`${id}-unit`} className="mb-1 block text-sm font-medium">単元名</label>
-        <input id={`${id}-unit`} aria-describedby={`${id}-unit-hint`} required value={value.unitName} onChange={event => update({ unitName: event.target.value })} className="w-full rounded-md border border-gray-300 px-3 py-2" />
-        <p id={`${id}-unit-hint`} className="text-xs text-gray-500">単元名は200文字以内で入力してください。</p></div>
+      <ProgressUnitField key={state.subject} id={id} subjectId={state.subject} value={value.unitName} onChange={unitName => update({ unitName })} />
       <div><label htmlFor={`${id}-status`} className="mb-1 block text-sm font-medium">進行状態</label>
         <select id={`${id}-status`} className="w-full rounded-md border border-gray-300 px-3 py-2" value={value.status} onChange={event => update({ status: event.target.value as ProgressValue['status'] })}>
           <option value="NOT_STARTED">未着手</option><option value="IN_PROGRESS">進行中</option><option value="COMPLETED">完了</option>
