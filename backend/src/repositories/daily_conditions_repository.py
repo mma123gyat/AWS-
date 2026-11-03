@@ -17,7 +17,7 @@ def get_condition(student_id: str, date: str) -> dict[str, Any] | None:
     return response.get("Item")
 
 
-def put_condition(student_id: str, date: str, available_minutes: int) -> dict[str, Any]:
+def put_condition(student_id: str, date: str, available_minutes: int, subject_id: str | None = None) -> dict[str, Any]:
     item = {
         "condition_id": str(uuid.uuid4()),
         "student_id": student_id,
@@ -25,5 +25,7 @@ def put_condition(student_id: str, date: str, available_minutes: int) -> dict[st
         "available_minutes": available_minutes,
         "created_at": datetime.now(UTC).isoformat(),
     }
+    if subject_id is not None and available_minutes > 0:
+        item["subject_id"] = subject_id
     _table().put_item(Item=item)
     return item

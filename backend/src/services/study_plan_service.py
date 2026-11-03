@@ -11,6 +11,8 @@ from src.repositories.study_plans_repository import (
     complete_plan_with_tasks,
     fail_plan,
     get_completed_plan,
+    matches_selection,
+    cached_selection,
     try_acquire_lock,
 )
 from src.repositories.study_tasks_repository import build_task_item, list_tasks_by_plan
@@ -61,38 +63,44 @@ def generate_plan(params: dict[str, Any], request_id: str) -> dict:
     }
 
 
-def generate_plan_for_student(student_id: str, available_minutes: int, request_id: str) -> dict:
+def generate_plan_for_student(student_id: str, available_minutes: int, request_id: str, subject_id: str | None = None) -> dict:
     """Orchestrates the full student study-plan flow with a per-day lock so:
     a completed plan for the selected time is reused, concurrent requests
     never produce duplicate plans, and a failed/timed-out attempt can be
     retried by a later request.
 
-    MVP simplification: a student may have progress rows for several
-    subjects, but this picks the first one — multi-subject prioritization is
-    deferred to Phase 2.
+    Explicit subject choices are scoped to this student's progress. Older
+    clients without a choice retain the first-subject behavior.
     """
     today = today_jst()
+    selected_progress = None
+    if subject_id is not None:
+        selected_progress = next((p for p in list_progresses_by_student(student_id)
+                                  if p["subject_id"] == subject_id), None)
+        if selected_progress is None:
+            raise ValidationError("この教科の学習の現在地を先生に登録してもらってください。")
 
     existing = get_completed_plan(student_id, today)
-    if existing and existing.get("available_minutes") == available_minutes:
+    if matches_selection(existing, available_minutes, subject_id):
         return {**existing, "tasks": list_tasks_by_plan(existing["plan_id"])}
 
     lock = try_acquire_lock(
         student_id, today, owner_id=request_id, stale_after_seconds=STALE_LOCK_SECONDS,
         available_minutes=available_minutes,
+        subject_id=subject_id,
     )
     if lock is None:
         # Someone else is generating (or just finished) — re-check instead of
         # failing outright, so a race that completed in between is served.
         refreshed = get_completed_plan(student_id, today)
-        if refreshed and refreshed.get("available_minutes") == available_minutes:
+        if matches_selection(refreshed, available_minutes, subject_id):
             return {**refreshed, "tasks": list_tasks_by_plan(refreshed["plan_id"])}
         raise ConflictError("学習プランを生成中です。しばらく待ってから再試行してください。")
 
     plan_id = lock["plan_id"]
 
     try:
-        cached = lock.get("plan_versions", {}).get(str(available_minutes))
+        cached = cached_selection(lock.get("plan_versions", {}), available_minutes, subject_id)
         if cached:
             # Tasks are kept in their original rows: never overwrite a saved
             # completion with the NOT_STARTED state from a newly built task.
@@ -103,13 +111,14 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
                 model_id=cached["model_id"], prompt_version=cached["prompt_version"],
                 tasks=[], created_at=lock["created_at"], check_condition=True,
                 ai_parameters=cached.get("ai_parameters"),
+                selected_subject_id=subject_id,
             )
             return {**restored, "tasks": list_tasks_by_plan(plan_id)}
 
         progresses = list_progresses_by_student(student_id)
         if not progresses:
             raise ValidationError("まだ学習の現在地が設定されていません。先生に設定してもらってください。")
-        progress = progresses[0]
+        progress = selected_progress if selected_progress is not None else progresses[0]
 
         student = get_user_by_id(student_id)
         if not student or not student.get("class_id"):
@@ -165,6 +174,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
             created_at=lock["created_at"],
             check_condition=True,
             ai_parameters=params["ai_parameters"],
+            selected_subject_id=subject_id,
         )
     except PlanLockLostError:
         # Our lock was already superseded (timeout takeover) before we could
@@ -172,7 +182,7 @@ def generate_plan_for_student(student_id: str, available_minutes: int, request_i
         # just no-op — re-check instead, the newer attempt may have already
         # completed it.
         refreshed = get_completed_plan(student_id, today)
-        if refreshed and refreshed.get("available_minutes") == available_minutes:
+        if matches_selection(refreshed, available_minutes, subject_id):
             return {**refreshed, "tasks": list_tasks_by_plan(refreshed["plan_id"])}
         raise ConflictError("学習プランを生成中です。しばらく待ってから再試行してください。")
     except Exception as exc:

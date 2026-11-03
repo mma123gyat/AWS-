@@ -102,9 +102,25 @@ def get_completed_plan(student_id: str, plan_date: str) -> dict[str, Any] | None
     return item
 
 
+def matches_selection(plan: dict | None, minutes: int, subject_id: str | None) -> bool:
+    return bool(plan and plan.get("available_minutes") == minutes
+                and (subject_id is None or plan.get("subject_id") == subject_id))
+
+
+def cached_selection(versions: dict, minutes: int, subject_id: str | None) -> dict | None:
+    if subject_id is not None:
+        cached = versions.get(f"{subject_id}:{minutes}")
+        if matches_selection(cached, minutes, subject_id):
+            return cached
+    # Read old time-only caches without assigning another subject's tasks.
+    cached = versions.get(str(minutes))
+    return cached if matches_selection(cached, minutes, subject_id) else None
+
+
 def try_acquire_lock(
     student_id: str, plan_date: str, owner_id: str, stale_after_seconds: int,
     available_minutes: int | None = None,
+    subject_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Attempts to become the exclusive generator for this student/day.
 
@@ -112,8 +128,9 @@ def try_acquire_lock(
     existing plan is GENERATING but its lease (`updated_at`) is older than
     `stale_after_seconds` (the previous attempt likely crashed or timed out).
     With available_minutes, a different completed plan can be archived and
-    switched under the same lock. Cache at most one plan per time choice;
-    returning to a choice restores its original task IDs and completion state.
+    switched under the same lock. Cache one plan per subject/time choice;
+    old time-only keys are aliases retained for older clients. Returning to
+    a choice restores its original task IDs and completion state.
     The default retains the original no-replacement behavior.
     """
     now = datetime.now(UTC)
@@ -150,7 +167,7 @@ def try_acquire_lock(
             status = current.get("status")
             if status == "GENERATING" and current.get("updated_at", now_iso) >= stale_threshold:
                 return None
-            if status in (None, "COMPLETED") and current.get("available_minutes") == available_minutes:
+            if status in (None, "COMPLETED") and matches_selection(current, available_minutes, subject_id):
                 if status == "COMPLETED" or _is_well_formed_legacy_plan(current):
                     return None
 
@@ -158,9 +175,10 @@ def try_acquire_lock(
             if status == "COMPLETED" or (status is None and _is_well_formed_legacy_plan(current)):
                 snapshot = {key: value for key, value in current.items() if key != "plan_versions"}
                 versions[str(int(current["available_minutes"]))] = snapshot
+                versions[f"{current['subject_id']}:{int(current['available_minutes'])}"] = snapshot
             if versions:
                 item["plan_versions"] = versions
-            cached = versions.get(str(available_minutes))
+            cached = cached_selection(versions, available_minutes, subject_id)
             if cached:
                 item["plan_id"] = cached["plan_id"]
                 item["created_at"] = cached.get("created_at", now_iso)
@@ -208,6 +226,7 @@ def complete_plan_with_tasks(
     created_at: str,
     check_condition: bool = False,
     ai_parameters: dict[str, int] | None = None,
+    selected_subject_id: str | None = None,
 ) -> dict[str, Any]:
     """Atomically marks the plan COMPLETED and writes every task row in a
     single TransactWriteItems call: either the whole plan is persisted, or
@@ -290,8 +309,13 @@ def complete_plan_with_tasks(
         condition_checks.append({"ConditionCheck": {
             "TableName": _resolve_table_name("DAILY_CONDITIONS_TABLE_NAME", "DailyConditions"),
             "Key": to_attribute_map({"student_id": student_id, "date": plan_date}),
-            "ConditionExpression": "available_minutes = :minutes",
-            "ExpressionAttributeValues": to_attribute_map({":minutes": available_minutes}),
+            "ConditionExpression": "available_minutes = :minutes AND " + (
+                "subject_id = :selected_subject" if selected_subject_id is not None
+                else "attribute_not_exists(subject_id)"
+            ),
+            "ExpressionAttributeValues": to_attribute_map({":minutes": available_minutes, **(
+                {":selected_subject": selected_subject_id} if selected_subject_id is not None else {}
+            )}),
         }})
 
     try:
@@ -305,7 +329,7 @@ def complete_plan_with_tasks(
                 f"plan lock for {student_id}/{plan_date} was lost (owner_id={owner_id})"
             ) from exc
         if check_condition and reasons and reasons[-1].get("Code") == "ConditionalCheckFailed":
-            raise ConflictError("学習時間が変更されました。画面を再読み込みして、もう一度お試しください。") from exc
+            raise ConflictError("学習時間または教科が変更されました。画面を再読み込みして、もう一度お試しください。") from exc
         raise PlanPersistenceError(f"学習プランの保存に失敗しました: {exc}") from exc
 
     return plan_item

@@ -56,6 +56,7 @@ export interface StudentDashboard {
   myCurrentPosition: ApiStudentProgressItem | null
   todayCondition: DailyCondition | null
   todayPlan: StudyPlanWithTasks | null
+  availableSubjects?: { subject_id: string; unit_name: string }[]
 }
 
 export interface GenerateStudyPlanResult {

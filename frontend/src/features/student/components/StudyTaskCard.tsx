@@ -1,9 +1,11 @@
 import { useId, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { FormEvent } from 'react'
 import { ApiError } from '../../../api/client'
 import { saveStudyRecord } from '../../../api/studentApi'
 import type { StudyTask, Understanding } from '../../../types/student'
 import { StatusPill } from './StatusPill'
+import { getMathStepsForTask, mathMaterialUrl } from '../../math/mathMaterials'
 
 const UNDERSTANDING_OPTIONS: { value: Understanding; label: string }[] = [
   { value: 1, label: '1：もう一度確認したい' },
@@ -13,7 +15,7 @@ const UNDERSTANDING_OPTIONS: { value: Understanding; label: string }[] = [
   { value: 5, label: '5：自分でできる' },
 ]
 
-export function StudyTaskCard({ task }: { task: StudyTask }) {
+export function StudyTaskCard({ task, showMaterialLinks = true }: { task: StudyTask; showMaterialLinks?: boolean }) {
   const formId = useId()
   const [actualMinutes, setActualMinutes] = useState(String(task.planned_minutes))
   const [understanding, setUnderstanding] = useState<Understanding>(3)
@@ -21,6 +23,7 @@ export function StudyTaskCard({ task }: { task: StudyTask }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const submitting = useRef(false)
+  const materials = showMaterialLinks ? getMathStepsForTask(task) : []
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -61,6 +64,11 @@ export function StudyTaskCard({ task }: { task: StudyTask }) {
         <div>
           <p className="study-task-description">{task.description}</p>
           <p className="study-task-minutes">予定：{task.planned_minutes}分</p>
+          {materials.length > 0 && <div className="math-material-links">
+            {materials.map(material => <Link key={material.id} className="text-link" to={mathMaterialUrl(material.id, task.task_id)}>
+              {material.unit}の教材を開く →
+            </Link>)}
+          </div>}
         </div>
         {record ? (
           <p className="success study-task-completed" role="status">
