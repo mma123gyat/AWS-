@@ -32,6 +32,16 @@ function resolveRole(groupsClaim: unknown): Role {
  * 「ログイン済み=生徒」のような決め打ちをせず、常にクレームからロールを
  * 復元する。
  */
+const DEV_STUDENT_PREVIEW = import.meta.env.VITE_DEV_STUDENT_PREVIEW === 'true';
+
+/** 開発用: バックエンド/Cognito未接続で生徒機能UIを確認したい場合の固定セッション。 */
+const DEV_STUDENT_SESSION: AuthSession = {
+  status: 'SIGNED_IN',
+  role: 'STUDENT',
+  email: 'preview-student@example.com',
+  refresh: async () => {},
+};
+
 export function useAuthSession(): AuthSession {
   const [session, setSession] = useState<{
     status: SessionStatus; role: Role; email: string;
@@ -64,10 +74,12 @@ export function useAuthSession(): AuthSession {
   }, [readSession]);
 
   useEffect(() => {
+    if (DEV_STUDENT_PREVIEW) return;
     mounted.current = true;
     void readSession(++version.current);
     return () => { mounted.current = false; version.current += 1; };
   }, [readSession]);
 
+  if (DEV_STUDENT_PREVIEW) return DEV_STUDENT_SESSION;
   return { ...session, refresh };
 }
