@@ -1,0 +1,32 @@
+.warp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: #050714;
+  overflow: hidden;
+  animation: warp-fade 480ms ease-in forwards;
+}
+
+.warp-overlay::before {
+  content: '';
+  position: absolute;
+  inset: -50%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, .9) 0deg 1deg, transparent 1deg 9deg);
+  animation: warp-streak 480ms cubic-bezier(.2, .6, .2, 1) forwards;
+}
+
+@keyframes warp-streak {
+  0% { transform: scale(.05); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: scale(6); opacity: 0; }
+}
+
+@keyframes warp-fade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warp-overlay, .warp-overlay::before { animation-duration: 1ms; }
+}

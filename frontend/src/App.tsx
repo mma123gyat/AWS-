@@ -4,9 +4,10 @@ import { confirmSignIn, signIn, signOut } from 'aws-amplify/auth'
 import './App.css'
 import { PortalFrame } from './components/layout/PortalFrame'
 import { AsyncScreen } from './components/ui/AsyncScreen'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { useAuthSession } from './hooks/useAuthSession'
 import type { Role, SessionStatus } from './hooks/useAuthSession'
+import { isPoolSubject } from './features/videoLesson/videoMaterials'
 
 const ClassManagementPage = lazy(() => import('./features/admin/ClassManagementPage'))
 const StudyTimeForm = lazy(() => import('./StudyTimeForm'))
@@ -25,6 +26,9 @@ const SharingSettingsPanel = lazy(() => import('./features/sharing/SharingSettin
 const SharingSettingsPage = lazy(() => import('./features/support/pages/SharingSettingsPage').then(module => ({ default: module.SharingSettingsPage })))
 const StudentDashboardPage = lazy(() => import('./features/student/pages/StudentDashboardPage').then(module => ({ default: module.StudentDashboardPage })))
 const MathMaterialsPage = lazy(() => import('./features/math/MathMaterialsPage').then(module => ({ default: module.MathMaterialsPage })))
+const SubjectMenuPage = lazy(() => import('./features/videoLesson/SubjectMenuPage').then(module => ({ default: module.SubjectMenuPage })))
+const VideoMaterialsPage = lazy(() => import('./features/videoLesson/VideoMaterialsPage').then(module => ({ default: module.VideoMaterialsPage })))
+const PracticePage = lazy(() => import('./features/videoLesson/PracticePage').then(module => ({ default: module.PracticePage })))
 
 function LoginPage({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState('')
@@ -166,7 +170,7 @@ function StudentLayout({ email, onLogout }: { email: string; onLogout: () => voi
       links={[
         { to: '/dashboard', label: 'ダッシュボード' },
         { to: '/condition', label: '学習時間' },
-        { to: '/materials/math', label: '数学教材' },
+        { to: '/materials', label: '教材' },
         { to: '/sharing', label: '共有設定' },
       ]}
     >
@@ -183,6 +187,12 @@ function ConditionPage() {
       <StudyTimeForm />
     </section>
   )
+}
+
+function PracticeRoute() {
+  const { subject } = useParams()
+  if (!isPoolSubject(subject)) return <NotFoundPage />
+  return <PracticePage subject={subject} />
 }
 
 function RoleUnknownNotice({ onLogout }: { onLogout: () => void }) {
@@ -319,8 +329,18 @@ function App() {
           <Route element={<StudentLayout email={session.email} onLogout={session.refresh} />}>
             <Route path="/condition" element={<AsyncScreen page><ConditionPage /></AsyncScreen>} />
             <Route path="/dashboard" element={<AsyncScreen page><StudentDashboardPage /></AsyncScreen>} />
+            <Route path="/materials" element={<AsyncScreen page><SubjectMenuPage /></AsyncScreen>} />
             <Route path="/materials/math" element={<AsyncScreen page><MathMaterialsPage /></AsyncScreen>} />
             <Route path="/materials/math/:stepId" element={<AsyncScreen page><MathMaterialsPage /></AsyncScreen>} />
+            <Route path="/materials/science" element={<AsyncScreen page><VideoMaterialsPage subject="science" /></AsyncScreen>} />
+            <Route path="/materials/science/:stepId" element={<AsyncScreen page><VideoMaterialsPage subject="science" /></AsyncScreen>} />
+            <Route path="/materials/japanese" element={<AsyncScreen page><VideoMaterialsPage subject="japanese" /></AsyncScreen>} />
+            <Route path="/materials/japanese/:stepId" element={<AsyncScreen page><VideoMaterialsPage subject="japanese" /></AsyncScreen>} />
+            <Route path="/materials/english" element={<AsyncScreen page><VideoMaterialsPage subject="english" /></AsyncScreen>} />
+            <Route path="/materials/english/:stepId" element={<AsyncScreen page><VideoMaterialsPage subject="english" /></AsyncScreen>} />
+            <Route path="/materials/social" element={<AsyncScreen page><VideoMaterialsPage subject="social" /></AsyncScreen>} />
+            <Route path="/materials/social/:stepId" element={<AsyncScreen page><VideoMaterialsPage subject="social" /></AsyncScreen>} />
+            <Route path="/practice/:subject" element={<AsyncScreen page><PracticeRoute /></AsyncScreen>} />
             <Route path="/sharing" element={<AsyncScreen page><SharingSettingsPanel key={session.email} role="STUDENT" /></AsyncScreen>} />
           </Route>
         </Route>

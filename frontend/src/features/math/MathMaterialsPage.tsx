@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { getStudentDashboard } from '../../api/studentApi'
+import { WarpLink } from '../../components/ui/WarpTransition'
 import { useFetch } from '../../hooks/useFetch'
 import { StudyTaskCard } from '../student/components/StudyTaskCard'
 import { mathSteps } from './catalog'
@@ -90,7 +91,7 @@ function Catalog({ steps, taskId }: { steps: readonly MathStep[]; taskId?: strin
     <input id={id} type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="例：比例、方程式" />
     <p className="muted">{visible.length}単元</p>
     <ul className="math-catalog">{visible.map(step => <li key={step.id}>
-      <Link to={mathMaterialUrl(step.id, taskId)}><span>{step.grade}</span> {step.unit}</Link>
+      <WarpLink to={mathMaterialUrl(step.id, taskId)}><span>{step.grade}</span> {step.unit}</WarpLink>
     </li>)}</ul>
     {visible.length === 0 && <p>条件に合う単元がありません。</p>}
   </section>

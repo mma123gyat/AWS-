@@ -1,0 +1,28 @@
+.video-materials { max-width: 1080px; margin: 0 auto; display: grid; gap: 16px; }
+.video-materials h1 { margin: 0; }
+.video-materials h2, .video-materials h3 { color: var(--ink); }
+.video-section { padding: 24px; }
+.video-materials p { line-height: 1.8; }
+.video-embed { position: relative; width: 100%; padding-top: 56.25%; border-radius: 12px; overflow: hidden; background: #0f172a; }
+.video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-summary { line-height: 2.2; }
+.video-summary select { font: inherit; margin: 0 4px; padding: 2px 6px; border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; }
+.video-summary select.is-correct { border-color: #2f9e52; background: #eafbf0; }
+.video-summary select.is-wrong { border-color: #d64545; background: #fdeeee; }
+.video-question { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 16px; }
+.video-question fieldset { border: 0; padding: 0; min-width: 0; }
+.video-question legend { margin-bottom: 12px; font-weight: 600; line-height: 1.8; }
+.video-choice { display: flex; align-items: flex-start; gap: 10px; padding: 12px; margin: 8px 0; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; }
+.video-choice input { width: auto; margin: 5px 0 0; flex: 0 0 auto; }
+.video-choice span { overflow-wrap: anywhere; }
+.video-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.video-feedback { border-left: 3px solid var(--accent); padding-left: 12px; margin-top: 12px; }
+.video-hints { padding-left: 1.5rem; line-height: 1.9; }
+.video-catalog { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.video-catalog a { display: block; height: 100%; padding: 14px; border: 1px solid var(--line); border-radius: 8px; line-height: 1.7; color: var(--accent); position: relative; }
+.video-catalog a.is-pending { color: var(--muted); }
+.video-catalog span { display: block; color: var(--muted); font-size: .85rem; }
+.pending-badge { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 999px; background: var(--line); color: var(--muted); font-size: .75rem; }
+.practice-entry { display: inline-block; margin-top: 16px; padding: 12px 18px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; }
+.video-materials input[type="search"] { width: 100%; margin-top: 8px; }
+@media (max-width: 600px) { .video-section { padding: 16px; } .video-catalog { grid-template-columns: 1fr; } }
