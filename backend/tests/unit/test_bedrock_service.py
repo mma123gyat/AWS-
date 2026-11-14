@@ -116,6 +116,19 @@ def test_raises_when_tool_input_fails_schema_validation(monkeypatch):
         generate_study_plan(BASE_PARAMS)
 
 
+def test_system_prompt_requires_unambiguous_calculation_rules():
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "絶対値" in prompt
+    assert "符号" in prompt
+    assert "等しい場合は0になる" in prompt
+    assert "反転" in prompt
+
+
+def test_prompt_version_bumped_from_previous_release():
+    assert bedrock_service.PROMPT_VERSION == "v3-math-rule-clarity"
+    assert bedrock_service.PROMPT_VERSION != "v2-teacher-parameters"
+
+
 def test_raises_when_plan_exceeds_available_minutes(monkeypatch):
     over_budget = {**VALID_TOOL_INPUT, "total_minutes": 15, "tasks": VALID_TOOL_INPUT["tasks"]}
     monkeypatch.setattr(bedrock_service, "_client", lambda: _FakeClient(_converse_response(over_budget)))

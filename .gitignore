@@ -15,6 +15,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+# AI study-plan validation harness output (generated, may contain draft plan text)
+backend/scripts/validation_output/
+
 # Env / secrets
 .env
 .env.local

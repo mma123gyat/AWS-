@@ -9,7 +9,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from src.models.study_plan_schema import StudyPlanValidationError, validate_study_plan_output
 from src.models.ai_parameters import plan_guidance
 
-PROMPT_VERSION = "v2-teacher-parameters"
+PROMPT_VERSION = "v3-math-rule-clarity"
 
 _TOOL_NAME = "submit_study_plan"
 _TOOL_INPUT_SCHEMA = {
@@ -45,6 +45,10 @@ _SYSTEM_PROMPT = (
     "- 学校の現在地ではなく、本人の現在地を出発点にする\n"
     "- 5分なら非常に小さな課題、15分なら1〜2タスク程度、30分でも多くしすぎない\n"
     "- 医療診断、精神状態の診断、登校すべきかどうかの判断、出席認定、成績決定、進級判断は行わない\n"
+    "- 計算規則を説明するときは、基準が不明確な言い回し（例:「大きい方から引く」）を避け、"
+    "誰が読んでも同じ手順を再現できる具体的な説明にする。正負の数の加法・減法では、"
+    "異符号の加法は「絶対値の差を求め、絶対値が大きい方の符号を採用する"
+    "（絶対値が等しい場合は0になる）」こと、減法は「引く数の符号を反転し、加法に直して考える」ことを明示する\n"
     "出力は必ず submit_study_plan ツールを使い、指定されたJSON構造のみで返してください。"
     "文章は日本語で、やさしく前向きな表現にしてください。"
 )
