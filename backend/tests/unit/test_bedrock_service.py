@@ -125,8 +125,98 @@ def test_system_prompt_requires_unambiguous_calculation_rules():
 
 
 def test_prompt_version_bumped_from_previous_release():
-    assert bedrock_service.PROMPT_VERSION == "v3-math-rule-clarity"
-    assert bedrock_service.PROMPT_VERSION != "v2-teacher-parameters"
+    assert bedrock_service.PROMPT_VERSION == "v4-understanding-adaptive"
+    assert bedrock_service.PROMPT_VERSION != "v3-math-rule-clarity"
+
+
+def test_system_prompt_caps_understanding_adjustment_to_grade_unit_and_time():
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "学年" in prompt
+    assert "学習可能時間" in prompt
+
+
+def test_system_prompt_requires_reason_and_tasks_to_match():
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "応用的" in prompt
+    assert "tasks" in prompt
+
+
+def test_system_prompt_decouples_problem_difficulty_from_explanation_depth():
+    """Problem difficulty follows the teacher's ai_parameters; explanation
+    thoroughness (examples/hints/step-by-step) follows the student's own
+    understanding. Both axes must be satisfiable at once, even when they
+    point in different directions (e.g. low understanding + high teacher
+    difficulty should keep the hard problems but add more scaffolding)."""
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "独立した軸" in prompt
+    assert "difficulty" in prompt
+    assert "ヒント" in prompt
+
+
+@pytest.mark.parametrize("understanding,expected_phrase", [
+    (1, "具体例"),
+    (1, "ヒント"),
+    (2, "段階的"),
+    (3, "応用的"),
+    (4, "理由"),
+    (5, "誤答の訂正"),
+])
+def test_user_message_reflects_understanding_level_guidance(understanding, expected_phrase):
+    text = bedrock_service._build_user_message({**BASE_PARAMS, "understanding": understanding})
+    assert f"本人の理解度(1〜5): {understanding}" in text
+    assert expected_phrase in text
+
+
+def test_understanding_guidance_differs_between_low_and_high():
+    low_text = bedrock_service._build_user_message({**BASE_PARAMS, "understanding": 1})
+    high_text = bedrock_service._build_user_message({**BASE_PARAMS, "understanding": 5})
+    assert low_text != high_text
+    assert "誤答の訂正" not in low_text
+    assert "誤答の訂正" in high_text
+
+
+@pytest.mark.parametrize(
+    "teacher_difficulty,understanding,teacher_label_phrase,understanding_phrase",
+    [
+        (1, 5, "基礎の確認を中心にする", "誤答の訂正"),
+        (5, 1, "無理のない範囲で応用問題に挑戦する", "具体例"),
+    ],
+)
+def test_user_message_exposes_both_signals_when_teacher_setting_conflicts_with_understanding(
+    teacher_difficulty, understanding, teacher_label_phrase, understanding_phrase
+):
+    """When teacher difficulty and student understanding disagree, both
+    signals must still reach the prompt — the system prompt (not this
+    function) tells the model how to reconcile them."""
+    params = {
+        **BASE_PARAMS,
+        "understanding": understanding,
+        "ai_parameters": {"difficulty": teacher_difficulty, "volume": 3, "supportLevel": 3},
+    }
+    text = bedrock_service._build_user_message(params)
+    assert teacher_label_phrase in text
+    assert understanding_phrase in text
+
+
+def test_user_message_keeps_teacher_difficulty_while_adding_scaffolding_for_low_understanding():
+    """The specific conflict called out by the product owner: understanding=1
+    (student struggles) with teacher difficulty=5 (advanced). The problem
+    difficulty label must still reflect the teacher's setting (not watered
+    down), while the understanding guidance must add examples/hints/step-by-
+    step explanation rather than simplifying the problems themselves."""
+    params = {
+        **BASE_PARAMS,
+        "understanding": 1,
+        "ai_parameters": {"difficulty": 5, "volume": 3, "supportLevel": 3},
+    }
+    text = bedrock_service._build_user_message(params)
+    assert "無理のない範囲で応用問題に挑戦する" in text  # teacher's difficulty=5 label, unweakened
+    assert "具体例" in text
+    assert "ヒント" in text
+    assert "段階的" in text
+
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "問題の難易度は教員の設定を保ちつつ" in prompt
 
 
 def test_raises_when_plan_exceeds_available_minutes(monkeypatch):

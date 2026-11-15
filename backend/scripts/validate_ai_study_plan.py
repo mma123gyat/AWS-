@@ -21,6 +21,7 @@ scores a fake response by mistake.
 Usage (from backend/, with the venv active):
     python -m scripts.validate_ai_study_plan --mode mock
     python -m scripts.validate_ai_study_plan --mode real
+    python -m scripts.validate_ai_study_plan --mode mock --condition P03
 """
 
 import argparse
@@ -181,6 +182,15 @@ CONDITIONS: list[dict[str, Any]] = [
         "ai_parameters": {"difficulty": 4, "volume": 2, "supportLevel": 3},
     },
 ]
+
+
+def select_conditions(condition_id: str | None) -> list[dict[str, Any]]:
+    """None runs all 10 conditions (default). A specific id (e.g. "P03")
+    restricts the run to that single condition."""
+    if condition_id is None:
+        return CONDITIONS
+    return [c for c in CONDITIONS if c["condition_id"] == condition_id]
+
 
 HUMAN_COLUMNS = [
     "human_unit_alignment_score",
@@ -532,11 +542,21 @@ def main() -> None:
     parser.add_argument("--mode", choices=["mock", "real"], default="mock")
     parser.add_argument("--force-regenerate", action="store_true")
     parser.add_argument("--output", type=Path, default=None)
+    parser.add_argument(
+        "--condition",
+        choices=[c["condition_id"] for c in CONDITIONS],
+        default=None,
+        help="指定した条件のみ実行する（例: P03）。未指定時は全10条件を実行する。",
+    )
     args = parser.parse_args()
 
     run_mode = args.mode.upper()
+    selected_conditions = select_conditions(args.condition)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output_path = args.output or (OUTPUT_DIR / f"results_{timestamp}.csv")
+    target_description = (
+        f"{args.condition} (1件)" if args.condition else f"全{len(CONDITIONS)}条件"
+    )
 
     cache = load_cache()
     original_client = bedrock_service._client
@@ -545,16 +565,17 @@ def main() -> None:
     rows: list[dict[str, Any]] = []
     try:
         if run_mode == "MOCK":
-            print("=== MOCKモード: AWSへの通信は一切行いません（ハーネス自己診断、AI品質検証ではありません） ===")
+            print(f"=== MOCKモード: AWSへの通信は一切行いません（ハーネス自己診断、AI品質検証ではありません） 対象条件: {target_description} ===")
             os.environ["BEDROCK_MODEL_ID"] = MOCK_MODEL_ID
         else:
             if "BEDROCK_MODEL_ID" not in os.environ:
                 raise SystemExit("BEDROCK_MODEL_ID が設定されていません。.env を確認してください。")
             verify_safety_preconditions()
+            print(f"対象条件: {target_description}")
             model_id = os.environ["BEDROCK_MODEL_ID"]
             prompt_version = bedrock_service.PROMPT_VERSION
             new_ids, cached_ids = [], []
-            for condition in CONDITIONS:
+            for condition in selected_conditions:
                 key = condition_hash(condition, run_mode, model_id, prompt_version)
                 target = cached_ids if (key in cache and not args.force_regenerate) else new_ids
                 target.append(condition["condition_id"])
@@ -563,7 +584,7 @@ def main() -> None:
                 print("中止しました。Bedrockへの呼び出しは行っていません。")
                 return
 
-        for condition in CONDITIONS:
+        for condition in selected_conditions:
             if run_mode == "MOCK":
                 bedrock_service._client = _mock_client_factory(condition)
             params = build_params(condition)

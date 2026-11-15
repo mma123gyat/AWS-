@@ -9,7 +9,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from src.models.study_plan_schema import StudyPlanValidationError, validate_study_plan_output
 from src.models.ai_parameters import plan_guidance
 
-PROMPT_VERSION = "v3-math-rule-clarity"
+PROMPT_VERSION = "v4-understanding-adaptive"
 
 _TOOL_NAME = "submit_study_plan"
 _TOOL_INPUT_SCHEMA = {
@@ -36,6 +36,14 @@ _TOOL_INPUT_SCHEMA = {
     "required": ["subject", "title", "total_minutes", "reason", "tasks"],
 }
 
+UNDERSTANDING_GUIDANCE = {
+    1: "基礎の復習を中心に、具体例やヒントを使い、手順を1つずつ区切って段階的に説明する",
+    2: "基礎の復習と具体例を中心に、ヒントを交えながら手順を段階的に説明する",
+    3: "基礎の確認と、少し応用的な問題を組み合わせる",
+    4: "基礎を踏まえつつ、複数の計算を組み合わせた問題や理由を説明させる問題を取り入れる",
+    5: "複数の計算を組み合わせた問題、誤答の訂正、理由の説明を求める問題など、理解を深める問題を優先する",
+}
+
 _SYSTEM_PROMPT = (
     "あなたは、学校に行きづらさを抱える中高生の自律学習を支援するAIです。\n"
     "以下のルールを必ず守ってください。\n"
@@ -49,6 +57,12 @@ _SYSTEM_PROMPT = (
     "誰が読んでも同じ手順を再現できる具体的な説明にする。正負の数の加法・減法では、"
     "異符号の加法は「絶対値の差を求め、絶対値が大きい方の符号を採用する"
     "（絶対値が等しい場合は0になる）」こと、減法は「引く数の符号を反転し、加法に直して考える」ことを明示する\n"
+    "- 本人の理解度に応じて難易度や説明の仕方を調整してよいが、学年・単元の範囲や指定された学習可能時間を超える難易度にはしない\n"
+    "- 問題の難易度（何を問うか）は教員が設定したdifficulty・volumeを基準にする。説明の丁寧さ・具体例・"
+    "ヒントの出し方（どう説明するか）は本人の理解度に応じて調整してよい。この2つは独立した軸として扱い、"
+    "矛盾する場合も両方を同時に満たすこと。特に本人の理解度が低く教員のdifficulty設定が高い場合は、"
+    "問題の難易度は教員の設定を保ちつつ、具体例・ヒント・段階的な説明を手厚くする\n"
+    "- 生成理由(reason)に「応用的」「発展的」などの特徴を記載する場合は、実際のtasksの内容にもその特徴が表れるようにする\n"
     "出力は必ず submit_study_plan ツールを使い、指定されたJSON構造のみで返してください。"
     "文章は日本語で、やさしく前向きな表現にしてください。"
 )
@@ -90,7 +104,7 @@ def _build_user_message(params: dict[str, Any]) -> str:
         f"教科: {params['subject']}\n"
         f"学校の現在地(学校で教えている単元): {params['school_topic']}\n"
         f"本人の現在地(本人が今取り組んでいる単元): {params['student_topic']}\n"
-        f"本人の理解度(1〜5): {params['understanding']}\n"
+        f"本人の理解度(1〜5): {params['understanding']}。{UNDERSTANDING_GUIDANCE[params['understanding']]}。\n"
         f"今日使える時間(分): {params['available_minutes']}\n"
         f"教員の難易度設定(1〜5): {settings['difficulty']}。{guidance['difficulty']}。\n"
         f"教員の学習量設定(1〜5): {settings['volume']}。{guidance['practice']}。\n"

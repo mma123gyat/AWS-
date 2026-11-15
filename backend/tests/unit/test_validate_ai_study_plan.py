@@ -1,3 +1,4 @@
+import csv
 import os
 
 import pytest
@@ -65,6 +66,19 @@ def test_build_params_has_keys_required_by_services():
         "grade", "subject", "school_topic", "student_topic",
         "understanding", "available_minutes", "ai_parameters",
     }
+
+
+@pytest.mark.parametrize("condition_id,expected_phrase", [
+    ("P01", "応用的"),       # understanding=3 (基準/中程度)
+    ("P02", "具体例"),       # understanding=1 (低)
+    ("P03", "誤答の訂正"),   # understanding=5 (高)
+])
+def test_P01_P02_P03_understanding_values_reflect_expected_prompt_guidance(condition_id, expected_phrase):
+    condition = _by_id(condition_id)
+    params = harness.build_params(condition)
+    text = harness.bedrock_service._build_user_message(params)
+    assert f"本人の理解度(1〜5): {condition['understanding']}" in text
+    assert expected_phrase in text
 
 
 def test_condition_hash_stable_for_identical_inputs():
@@ -309,6 +323,81 @@ def test_mode_real_gate_runs_safety_check_before_any_bedrock_call(monkeypatch):
 
     with pytest.raises(SystemExit):
         harness.main()
+
+
+def test_select_conditions_all_by_default():
+    assert harness.select_conditions(None) == harness.CONDITIONS
+
+
+def test_select_conditions_filters_to_single_id():
+    result = harness.select_conditions("P03")
+    assert len(result) == 1
+    assert result[0]["condition_id"] == "P03"
+
+
+def test_condition_choice_rejects_unknown_id(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["validate_ai_study_plan", "--mode", "mock", "--condition", "P99"])
+    with pytest.raises(SystemExit):
+        harness.main()
+
+
+def test_mode_mock_with_condition_filter_runs_only_selected(monkeypatch, tmp_path):
+    monkeypatch.setattr(harness, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(harness, "CACHE_PATH", tmp_path / "plan_cache.json")
+    output_path = tmp_path / "out.csv"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["validate_ai_study_plan", "--mode", "mock", "--condition", "P03", "--output", str(output_path)],
+    )
+
+    harness.main()
+
+    with output_path.open(encoding="utf-8-sig") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 1
+    assert rows[0]["condition_id"] == "P03"
+
+
+def test_real_mode_call_count_matches_selected_condition(monkeypatch, capsys):
+    """With --condition P03, the pre-run confirmation must show 1 call, not
+    the full 10 — otherwise an operator could be misled into confirming
+    charges for the wrong number of Bedrock invocations."""
+    monkeypatch.setattr(harness, "load_cache", lambda: {})
+    monkeypatch.setattr(harness.bedrock_service, "_client", lambda: _StubBedrockClient(harness.EXPECTED_AWS_REGION))
+    monkeypatch.setattr(harness.boto3, "client", lambda *a, **kw: _StubStsClient(harness.EXPECTED_AWS_ACCOUNT_ID))
+    monkeypatch.setattr("builtins.input", lambda prompt="": "no")
+    monkeypatch.setattr("sys.argv", ["validate_ai_study_plan", "--mode", "real", "--condition", "P03"])
+
+    harness.main()  # aborts after printing the confirmation prompt (input() -> "no")
+
+    out = capsys.readouterr().out
+    assert "新規呼び出し: 1件" in out
+    assert "新規呼び出し: 10件" not in out
+
+
+def test_run_condition_cache_invalidated_when_prompt_version_changes(monkeypatch):
+    condition = _by_id("P03")
+    calls = []
+
+    def _fake_generate_plan(params, request_id):
+        calls.append(request_id)
+        return {
+            **VALID_PLAN,
+            "generator": "BEDROCK",
+            "model_id": harness.MOCK_MODEL_ID,
+            "prompt_version": harness.bedrock_service.PROMPT_VERSION,
+        }
+
+    monkeypatch.setattr(harness.study_plan_service, "generate_plan", _fake_generate_plan)
+    monkeypatch.setattr(harness.bedrock_service, "PROMPT_VERSION", "v2-teacher-parameters")
+
+    cache = {}
+    harness.run_condition(condition, "MOCK", cache, force=False)
+    assert len(calls) == 1
+
+    monkeypatch.setattr(harness.bedrock_service, "PROMPT_VERSION", "v3-math-rule-clarity")
+    harness.run_condition(condition, "MOCK", cache, force=False)
+    assert len(calls) == 2  # prompt version change => cache miss, generation happens again
 
 
 def test_build_summary_counts_bedrock_and_rule_separately():
