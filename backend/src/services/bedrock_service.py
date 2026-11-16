@@ -1,4 +1,5 @@
 import os
+import sys
 from functools import lru_cache
 from typing import Any
 
@@ -9,7 +10,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from src.models.study_plan_schema import StudyPlanValidationError, validate_study_plan_output
 from src.models.ai_parameters import plan_guidance
 
-PROMPT_VERSION = "v4-understanding-adaptive"
+PROMPT_VERSION = "v5-task-completeness"
 
 _TOOL_NAME = "submit_study_plan"
 _TOOL_INPUT_SCHEMA = {
@@ -63,6 +64,17 @@ _SYSTEM_PROMPT = (
     "矛盾する場合も両方を同時に満たすこと。特に本人の理解度が低く教員のdifficulty設定が高い場合は、"
     "問題の難易度は教員の設定を保ちつつ、具体例・ヒント・段階的な説明を手厚くする\n"
     "- 生成理由(reason)に「応用的」「発展的」などの特徴を記載する場合は、実際のtasksの内容にもその特徴が表れるようにする\n"
+    # v5: maxTokens=1024は変更しないため、問題数を具体的に書き切れる範囲に抑え、
+    # 手順説明の重複を減らすことで出力トークン予算とのバランスを取る。
+    "- タスクの説明(description)で「○問」のように問題数を示す場合は、「次のような問題」のような例示だけで済ませず、"
+    "独立した具体的な式・問題文をその数だけすべて明記する。問題数は学習可能時間と教員の学習量設定の範囲に収め、"
+    "最初から無理なく全問書き切れる数に設定する（数を増やすこと自体を目的にしない。書き切れない場合は問題数を減らす）\n"
+    "- 本人が「今日やること」を読むだけで今すぐ取り組めるように、問題は具体的な数値・式をそのまま提示する。"
+    "本人が自分で問題を探したり作ったりする必要がある書き方にしない\n"
+    "- 誤りを訂正させる問題では、誤った式と誤った答えをAI自身が示し、本人には「どこが間違っているか」と"
+    "「正しい答え」を考えさせる。誤った例を本人に作らせない\n"
+    "- 解き方の手順説明は1回書けば十分で、同じ説明を問題ごとに繰り返さない。各問題の文章は簡潔にし、"
+    "出力全体が長くなりすぎないようにする\n"
     "出力は必ず submit_study_plan ツールを使い、指定されたJSON構造のみで返してください。"
     "文章は日本語で、やさしく前向きな表現にしてください。"
 )
@@ -77,20 +89,76 @@ class BedrockGenerationError(Exception):
     """
 
 
+_DEFAULT_READ_TIMEOUT_SECONDS = 10
+_MIN_READ_TIMEOUT_SECONDS = 1
+_MAX_READ_TIMEOUT_SECONDS = 300
+
+
+def _resolve_read_timeout_seconds() -> int:
+    """BEDROCK_READ_TIMEOUT_SECONDS overrides the 10s default read timeout.
+
+    This exists for local diagnosis of Bedrock Read timeouts (e.g. via
+    scripts/validate_ai_study_plan.py) — it is not wired into CDK
+    (infrastructure/lib/api-stack.ts's commonEnv has no such key), so
+    production Lambdas never see it unless someone sets it there by hand,
+    outside CDK. Doing that DOES change production behavior: the Lambda's
+    hard timeout is 30s, and connect_timeout(2s) + read_timeout + DB
+    reads/writes + rule-based fallback all have to fit inside it, so a
+    large value risks the whole handler timing out instead of falling
+    back to the rule-based generator cleanly. Only set this for
+    verification runs, never on the deployed Lambda.
+
+    Invalid values (non-integer, <= 0, or > 300s) fall back to the
+    default and log a warning to stderr rather than raising, so a bad
+    value can never crash a Lambda cold start.
+    """
+    raw = os.environ.get("BEDROCK_READ_TIMEOUT_SECONDS")
+    if raw is None:
+        return _DEFAULT_READ_TIMEOUT_SECONDS
+
+    try:
+        value = int(raw)
+    except ValueError:
+        print(
+            f"BEDROCK_READ_TIMEOUT_SECONDS={raw!r} は整数として解釈できません。"
+            f"デフォルト値 {_DEFAULT_READ_TIMEOUT_SECONDS}秒 を使用します。",
+            file=sys.stderr,
+        )
+        return _DEFAULT_READ_TIMEOUT_SECONDS
+
+    if value < _MIN_READ_TIMEOUT_SECONDS or value > _MAX_READ_TIMEOUT_SECONDS:
+        print(
+            f"BEDROCK_READ_TIMEOUT_SECONDS={value} は許容範囲"
+            f"({_MIN_READ_TIMEOUT_SECONDS}〜{_MAX_READ_TIMEOUT_SECONDS}秒)外です。"
+            f"デフォルト値 {_DEFAULT_READ_TIMEOUT_SECONDS}秒 を使用します。",
+            file=sys.stderr,
+        )
+        return _DEFAULT_READ_TIMEOUT_SECONDS
+
+    return value
+
+
 @lru_cache(maxsize=1)
 def _client():
     # Budget roughly 12s for one Bedrock attempt within the 30s Lambda:
-    # 2s to connect and 10s to read, leaving room for input DB reads,
-    # rule-based fallback, transactional saving, and failure cleanup.
-    # These are socket timeouts, not a hard deadline for the whole handler.
-    # total_max_attempts includes the first call; 1 disables SDK retries
-    # and backoff even if AWS_MAX_ATTEMPTS requests more attempts.
+    # 2s to connect and 10s to read (by default), leaving room for input
+    # DB reads, rule-based fallback, transactional saving, and failure
+    # cleanup. These are socket timeouts, not a hard deadline for the
+    # whole handler. total_max_attempts includes the first call; 1
+    # disables SDK retries and backoff even if AWS_MAX_ATTEMPTS requests
+    # more attempts.
+    #
+    # Cache note: this function is lru_cache(maxsize=1)'d, same as
+    # AWS_REGION below. Once called in a process, changing
+    # BEDROCK_READ_TIMEOUT_SECONDS afterwards has no effect until
+    # _client.cache_clear() is called — matters for tests/REPL use, not
+    # for a fresh Lambda cold start or a one-shot script.
     return boto3.client(
         "bedrock-runtime",
         region_name=os.environ.get("AWS_REGION", "ap-northeast-1"),
         config=Config(
             connect_timeout=2,
-            read_timeout=10,
+            read_timeout=_resolve_read_timeout_seconds(),
             retries={"mode": "standard", "total_max_attempts": 1},
         ),
     )

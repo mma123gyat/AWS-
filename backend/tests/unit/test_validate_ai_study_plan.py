@@ -375,6 +375,74 @@ def test_real_mode_call_count_matches_selected_condition(monkeypatch, capsys):
     assert "新規呼び出し: 10件" not in out
 
 
+def _real_cache_entry(condition_id: str, generator: str) -> tuple[str, dict]:
+    condition = _by_id(condition_id)
+    model_id = os.environ["BEDROCK_MODEL_ID"]
+    prompt_version = harness.bedrock_service.PROMPT_VERSION
+    key = harness.condition_hash(condition, "REAL", model_id, prompt_version)
+    record = {
+        "params": harness.build_params(condition),
+        "plan": {"title": "t", "reason": "r", "total_minutes": 5, "tasks": []},
+        "generator": generator,
+        "model_id": model_id if generator == "BEDROCK" else "rule-based-v2-teacher-parameters",
+        "prompt_version": prompt_version,
+        "generated_at": harness.now_iso(),
+        "run_mode": "REAL",
+    }
+    return key, record
+
+
+def test_real_mode_warns_when_cached_result_is_rule_fallback(monkeypatch, capsys):
+    key, record = _real_cache_entry("P03", "RULE")
+    monkeypatch.setattr(harness, "load_cache", lambda: {key: record})
+    monkeypatch.setattr(harness.bedrock_service, "_client", lambda: _StubBedrockClient(harness.EXPECTED_AWS_REGION))
+    monkeypatch.setattr(harness.boto3, "client", lambda *a, **kw: _StubStsClient(harness.EXPECTED_AWS_ACCOUNT_ID))
+    monkeypatch.setattr("builtins.input", lambda prompt="": "no")
+    monkeypatch.setattr("sys.argv", ["validate_ai_study_plan", "--mode", "real", "--condition", "P03"])
+
+    harness.main()
+
+    out = capsys.readouterr().out
+    assert "RULEフォールバック結果" in out
+    assert "P03" in out
+    assert "--force-regenerate" in out
+
+
+def test_real_mode_does_not_warn_for_bedrock_cached_result(monkeypatch, capsys):
+    key, record = _real_cache_entry("P03", "BEDROCK")
+    monkeypatch.setattr(harness, "load_cache", lambda: {key: record})
+    monkeypatch.setattr(harness.bedrock_service, "_client", lambda: _StubBedrockClient(harness.EXPECTED_AWS_REGION))
+    monkeypatch.setattr(harness.boto3, "client", lambda *a, **kw: _StubStsClient(harness.EXPECTED_AWS_ACCOUNT_ID))
+    monkeypatch.setattr("builtins.input", lambda prompt="": "no")
+    monkeypatch.setattr("sys.argv", ["validate_ai_study_plan", "--mode", "real", "--condition", "P03"])
+
+    harness.main()
+
+    out = capsys.readouterr().out
+    assert "RULEフォールバック結果" not in out
+
+
+def test_real_mode_force_regenerate_suppresses_rule_warning_and_counts_as_new(monkeypatch, capsys):
+    """--force-regenerate must both silence the RULE warning (the cache for
+    that condition will not be reused) and show the correct new-call count,
+    since an operator relies on this count to know what will be billed."""
+    key, record = _real_cache_entry("P03", "RULE")
+    monkeypatch.setattr(harness, "load_cache", lambda: {key: record})
+    monkeypatch.setattr(harness.bedrock_service, "_client", lambda: _StubBedrockClient(harness.EXPECTED_AWS_REGION))
+    monkeypatch.setattr(harness.boto3, "client", lambda *a, **kw: _StubStsClient(harness.EXPECTED_AWS_ACCOUNT_ID))
+    monkeypatch.setattr("builtins.input", lambda prompt="": "no")
+    monkeypatch.setattr(
+        "sys.argv",
+        ["validate_ai_study_plan", "--mode", "real", "--condition", "P03", "--force-regenerate"],
+    )
+
+    harness.main()
+
+    out = capsys.readouterr().out
+    assert "RULEフォールバック結果" not in out
+    assert "新規呼び出し: 1件" in out
+
+
 def test_run_condition_cache_invalidated_when_prompt_version_changes(monkeypatch):
     condition = _by_id("P03")
     calls = []

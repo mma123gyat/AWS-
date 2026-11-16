@@ -574,11 +574,21 @@ def main() -> None:
             print(f"対象条件: {target_description}")
             model_id = os.environ["BEDROCK_MODEL_ID"]
             prompt_version = bedrock_service.PROMPT_VERSION
-            new_ids, cached_ids = [], []
+            new_ids, cached_ids, cached_rule_ids = [], [], []
             for condition in selected_conditions:
                 key = condition_hash(condition, run_mode, model_id, prompt_version)
-                target = cached_ids if (key in cache and not args.force_regenerate) else new_ids
-                target.append(condition["condition_id"])
+                if key in cache and not args.force_regenerate:
+                    cached_ids.append(condition["condition_id"])
+                    if cache[key].get("generator") == "RULE":
+                        cached_rule_ids.append(condition["condition_id"])
+                else:
+                    new_ids.append(condition["condition_id"])
+            if cached_rule_ids:
+                print(
+                    "警告: 以下の条件はキャッシュがRULEフォールバック結果です"
+                    f"（Bedrock生成ではありません）: {', '.join(cached_rule_ids)}"
+                )
+                print("Bedrockを再呼び出しするには --force-regenerate を指定してください。")
             region = os.environ.get("AWS_REGION", "ap-northeast-1")
             if not confirm_real_run(len(new_ids), len(cached_ids), model_id, region):
                 print("中止しました。Bedrockへの呼び出しは行っていません。")

@@ -75,6 +75,88 @@ def test_client_passes_timeout_and_retry_config_to_sdk(monkeypatch, region):
     assert config.retries == {"mode": "standard", "total_max_attempts": 1}
 
 
+def test_client_uses_default_read_timeout_when_env_unset(monkeypatch):
+    monkeypatch.delenv("BEDROCK_READ_TIMEOUT_SECONDS", raising=False)
+    captured = {}
+    fake_client = object()
+
+    def _create_client(service_name, **kwargs):
+        captured.update(service_name=service_name, **kwargs)
+        return fake_client
+
+    monkeypatch.setattr(bedrock_service.boto3, "client", _create_client)
+    bedrock_service._client.cache_clear()
+    try:
+        bedrock_service._client()
+    finally:
+        bedrock_service._client.cache_clear()
+
+    assert captured["config"].read_timeout == 10
+
+
+def test_client_uses_configured_read_timeout_when_valid(monkeypatch):
+    monkeypatch.setenv("BEDROCK_READ_TIMEOUT_SECONDS", "120")
+    captured = {}
+    fake_client = object()
+
+    def _create_client(service_name, **kwargs):
+        captured.update(service_name=service_name, **kwargs)
+        return fake_client
+
+    monkeypatch.setattr(bedrock_service.boto3, "client", _create_client)
+    bedrock_service._client.cache_clear()
+    try:
+        bedrock_service._client()
+    finally:
+        bedrock_service._client.cache_clear()
+
+    assert captured["config"].read_timeout == 120
+
+
+@pytest.mark.parametrize("bad_value", ["abc", "0", "-5", "99999"])
+def test_client_falls_back_to_default_read_timeout_for_invalid_values(monkeypatch, bad_value, capsys):
+    monkeypatch.setenv("BEDROCK_READ_TIMEOUT_SECONDS", bad_value)
+    captured = {}
+    fake_client = object()
+
+    def _create_client(service_name, **kwargs):
+        captured.update(service_name=service_name, **kwargs)
+        return fake_client
+
+    monkeypatch.setattr(bedrock_service.boto3, "client", _create_client)
+    bedrock_service._client.cache_clear()
+    try:
+        bedrock_service._client()
+    finally:
+        bedrock_service._client.cache_clear()
+
+    assert captured["config"].read_timeout == 10
+    assert "BEDROCK_READ_TIMEOUT_SECONDS" in capsys.readouterr().err
+
+
+def test_client_cache_requires_manual_clear_for_env_change_to_take_effect(monkeypatch):
+    """Demonstrates the lru_cache caveat documented on _client(): once the
+    client has been built in a process, changing BEDROCK_READ_TIMEOUT_SECONDS
+    has no effect until _client.cache_clear() is called explicitly."""
+    monkeypatch.delenv("BEDROCK_READ_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.setattr(bedrock_service.boto3, "client", lambda service_name, **kwargs: kwargs["config"])
+
+    bedrock_service._client.cache_clear()
+    try:
+        first_config = bedrock_service._client()
+        assert first_config.read_timeout == 10
+
+        monkeypatch.setenv("BEDROCK_READ_TIMEOUT_SECONDS", "120")
+        stale_config = bedrock_service._client()
+        assert stale_config.read_timeout == 10  # cached client, env change not yet applied
+
+        bedrock_service._client.cache_clear()
+        fresh_config = bedrock_service._client()
+        assert fresh_config.read_timeout == 120
+    finally:
+        bedrock_service._client.cache_clear()
+
+
 @pytest.mark.parametrize("timeout_type", [ConnectTimeoutError, ReadTimeoutError])
 def test_wraps_sdk_timeout_as_bedrock_generation_error(monkeypatch, timeout_type):
     timeout = timeout_type(endpoint_url="https://bedrock.invalid")
@@ -125,8 +207,38 @@ def test_system_prompt_requires_unambiguous_calculation_rules():
 
 
 def test_prompt_version_bumped_from_previous_release():
-    assert bedrock_service.PROMPT_VERSION == "v4-understanding-adaptive"
-    assert bedrock_service.PROMPT_VERSION != "v3-math-rule-clarity"
+    assert bedrock_service.PROMPT_VERSION == "v5-task-completeness"
+    assert bedrock_service.PROMPT_VERSION != "v4-understanding-adaptive"
+
+
+def test_system_prompt_requires_enumerating_every_stated_problem():
+    """Fixes the P03 defect: the model wrote "3問解きます" but only gave one
+    worked expression. The prompt must forbid substituting a single example
+    ("次のような問題") for the full stated count."""
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "次のような問題" in prompt
+    assert "その数だけすべて明記する" in prompt
+    assert "無理なく全問書き切れる数に設定する" in prompt
+
+
+def test_system_prompt_requires_self_contained_problems_no_external_search():
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "今日やること" in prompt
+    assert "自分で問題を探したり作ったりする必要がある書き方にしない" in prompt
+
+
+def test_system_prompt_requires_ai_to_state_wrong_example_for_error_correction():
+    """Fixes the P03 defect: "誤答例を1つ用意し" read as an instruction for the
+    student to invent their own wrong example instead of being given one."""
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "誤った式と誤った答えをAI自身が示し" in prompt
+    assert "誤った例を本人に作らせない" in prompt
+
+
+def test_system_prompt_discourages_duplicate_explanations_to_control_output_length():
+    prompt = bedrock_service._SYSTEM_PROMPT
+    assert "同じ説明を問題ごとに繰り返さない" in prompt
+    assert "出力全体が長くなりすぎないようにする" in prompt
 
 
 def test_system_prompt_caps_understanding_adjustment_to_grade_unit_and_time():
