@@ -27,6 +27,7 @@ const BACKEND_ASSET_PATH = path.join(__dirname, '../../backend');
 const BACKEND_ASSET_EXCLUDES = [
   '.venv',
   'tests',
+  'scripts',
   '.pytest_cache',
   '**/__pycache__',
   '**/*.pyc',

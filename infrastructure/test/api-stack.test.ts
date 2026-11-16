@@ -1,10 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { ApiStack } from '../lib/api-stack';
 import { AuthStack } from '../lib/auth-stack';
 import { DataStack } from '../lib/data-stack';
 
 let authTemplate: Template;
+let assemblyDirectory: string;
+
+const BACKEND_ROOT = path.join(__dirname, '..', '..', 'backend');
 
 function apiTemplate(): Template {
   const app = new cdk.App();
@@ -25,6 +30,11 @@ function apiTemplate(): Template {
     studyRecordsTable: data.studyRecordsTable,
     messagesTable: data.messagesTable,
   });
+  // Template.fromStack() triggers app.synth() internally; capture the same
+  // Cloud Assembly it produces so we know exactly where CDK staged the
+  // Lambda asset for THIS test run, rather than assuming a fixed path like
+  // infrastructure/cdk.out (the app's outdir is not guaranteed to be that).
+  assemblyDirectory = app.synth().directory;
   authTemplate = Template.fromStack(auth);
   return Template.fromStack(api);
 }
@@ -102,6 +112,34 @@ test('email-only registration stays enabled with an immutable invitation marker'
     AdminCreateUserConfig: { AllowAdminCreateUserOnly: true },
     Schema: Match.arrayWith([{ Name: 'invitation_id', AttributeDataType: 'String', Mutable: false }]),
   });
+});
+
+test('lambda asset keeps required handler code but excludes dev-only scripts/validation artifacts', () => {
+  const entries = fs.readdirSync(assemblyDirectory).filter((name) => name.startsWith('asset.'));
+  expect(entries.length).toBeGreaterThan(0);
+
+  const backendAssetDirs = entries
+    .map((name) => path.join(assemblyDirectory, name))
+    .filter((dir) => fs.existsSync(path.join(dir, 'src')) && fs.statSync(path.join(dir, 'src')).isDirectory());
+  expect(backendAssetDirs.length).toBeGreaterThan(0);
+
+  for (const dir of backendAssetDirs) {
+    // Required handler/service code must still be present.
+    expect(fs.existsSync(path.join(dir, 'src', 'handlers', 'students', 'post_study_plan.py'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'src', 'services', 'bedrock_service.py'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'src', 'services', 'study_plan_service.py'))).toBe(true);
+
+    // The whole dev-only scripts/ tree (validation harness, CSVs, caches,
+    // backups) must not ship in the Lambda package.
+    expect(fs.existsSync(path.join(dir, 'scripts'))).toBe(false);
+
+    const realValidationOutput = path.join(BACKEND_ROOT, 'scripts', 'validation_output');
+    if (fs.existsSync(realValidationOutput)) {
+      for (const entry of fs.readdirSync(realValidationOutput)) {
+        expect(fs.existsSync(path.join(dir, 'scripts', 'validation_output', entry))).toBe(false);
+      }
+    }
+  }
 });
 
 test('administrator handlers have no Cognito administration and cannot delete users or audit records', () => {
