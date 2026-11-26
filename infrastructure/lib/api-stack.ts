@@ -292,6 +292,8 @@ export class ApiStack extends cdk.Stack {
     const studyPlanResource = studentsMe.addResource('study-plan');
 
     const postStudyPlanFn = createFunction('PostStudyPlanFn', 'src.handlers.students.post_study_plan.handler');
+    // Bedrockの読み取りタイムアウトを18秒に設定
+    postStudyPlanFn.addEnvironment('BEDROCK_READ_TIMEOUT_SECONDS', '18');
     props.dailyConditionsTable.grantReadData(postStudyPlanFn);
     props.studentProgressesTable.grantReadData(postStudyPlanFn);
     props.curriculumsTable.grantReadData(postStudyPlanFn);

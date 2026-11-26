@@ -219,25 +219,37 @@ def generate_study_plan(params: dict[str, Any]) -> dict:
                 ],
                 "toolChoice": {"tool": {"name": _TOOL_NAME}},
             },
-            inferenceConfig={"maxTokens": 1024},
+            inferenceConfig={"maxTokens": 2048},
         )
     except (BotoCoreError, ClientError) as exc:
         raise BedrockGenerationError(f"Bedrock呼び出しに失敗しました: {exc}") from exc
 
     tool_input = _extract_tool_input(response)
+
     if tool_input is None:
-        raise BedrockGenerationError("Bedrockからの応答に学習プランが含まれていませんでした。")
+        raise BedrockGenerationError(
+            "Bedrockからの応答に学習プランが含まれていませんでした。"
+        )
 
     try:
         plan = validate_study_plan_output(tool_input)
     except StudyPlanValidationError as exc:
-        raise BedrockGenerationError(f"Bedrockの出力が不正な形式でした: {exc}") from exc
+        raise BedrockGenerationError(
+            f"Bedrockの出力が不正な形式でした: {exc}"
+        ) from exc
 
     if plan["total_minutes"] > available_minutes:
-        raise BedrockGenerationError("Bedrockの提案が学習可能時間を超えていました。")
+        raise BedrockGenerationError(
+            "Bedrockの提案が学習可能時間を超えていました。"
+        )
 
     guidance = plan_guidance(params)
-    if plan["total_minutes"] > guidance["target_minutes"] or len(plan["tasks"]) > guidance["task_count"]:
-        raise BedrockGenerationError("Bedrockの提案が教員の学習量設定を超えていました。")
+    if (
+        plan["total_minutes"] > guidance["target_minutes"]
+        or len(plan["tasks"]) > guidance["task_count"]
+    ):
+        raise BedrockGenerationError(
+            "Bedrockの提案が教員の学習量設定を超えていました。"
+        )
 
     return plan
